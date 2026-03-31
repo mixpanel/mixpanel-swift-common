@@ -48,6 +48,15 @@ public final class JSONLogicEvaluator {
         return truthy(result)
     }
 
+    /// Evaluate a JSONLogic expression and return the raw result (Any type)
+    /// Use this for testing or when you need the actual computed value (numbers, strings, arrays, etc.)
+    public func evaluateRaw(
+        _ expression: [String: Any],
+        data: [String: Any]
+    ) throws -> Any {
+        return try evaluateExpression(expression, data: data)
+    }
+
     /// Evaluate a JSONLogic expression (returns Any)
     private func evaluateExpression(
         _ expression: [String: Any],
@@ -222,11 +231,15 @@ public final class JSONLogicEvaluator {
     }
 
     private func evaluateNot(_ args: Any, data: [String: Any]) throws -> Bool {
-        guard let expression = args as? [String: Any] else {
-            throw EvaluationError.invalidExpression
+        let value: Any
+        if let expression = args as? [String: Any] {
+            value = try evaluateExpression(expression, data: data)
+        } else if let array = args as? [Any], let first = array.first {
+            value = try resolveValue(first, data: data)
+        } else {
+            value = try resolveValue(args, data: data)
         }
-
-        return try !evaluate(expression, data: data)
+        return !truthy(value)
     }
 
     private func evaluateDoubleNegation(_ args: Any, data: [String: Any]) throws -> Bool {
@@ -505,11 +518,9 @@ public final class JSONLogicEvaluator {
     // MARK: - Value Resolution
 
     private func resolveValue(_ value: Any, data: [String: Any]) throws -> Any {
-        // Variable reference: {"var": "key_name"}
-        if let dict = value as? [String: Any],
-           dict.count == 1,
-           let varKey = dict["var"] as? String {
-            return data[varKey] ?? NSNull()
+        // If it's an expression (dictionary with single operator key), evaluate it
+        if let dict = value as? [String: Any], dict.count == 1 {
+            return try evaluateExpression(dict, data: data)
         }
 
         return value
