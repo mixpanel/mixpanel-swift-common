@@ -6,10 +6,10 @@ import PackageDescription
 let package = Package(
     name: "MixpanelSwiftShared",
     platforms: [
-        .iOS(.v13),
-        .macOS(.v10_15),
-        .tvOS(.v13),
-        .watchOS(.v6)
+        .iOS(.v12),
+        .tvOS(.v12),
+        .macOS(.v10_13),
+        .watchOS(.v4),
     ],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
