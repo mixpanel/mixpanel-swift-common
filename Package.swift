@@ -26,7 +26,8 @@ let package = Package(
         ),
         .testTarget(
             name: "MixpanelSwiftCommonTests",
-            dependencies: ["MixpanelSwiftCommon"]
+            dependencies: ["MixpanelSwiftCommon"],
+            resources: [.copy("test-data")]
         )
     ]
 )
