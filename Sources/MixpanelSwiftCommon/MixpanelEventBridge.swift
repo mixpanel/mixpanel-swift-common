@@ -1,6 +1,6 @@
 //
 //  MixpanelEventBridge.swift
-//  Mixpanel
+//  MixpanelSwiftCommon
 //
 //  Created by Ketan on 25/03/26.
 //  Copyright © 2026 Mixpanel. All rights reserved.
@@ -57,13 +57,19 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
             // Register continuation
             self.continuationsLock.lock()
             self.continuations[id] = continuation
+            let streamCount = self.continuations.count
             self.continuationsLock.unlock()
+
+            Logger.debug(message: "Event stream created (id: \(id.uuidString.prefix(8))..., active: \(streamCount))")
 
             // Setup automatic cleanup on termination
             continuation.onTermination = { [weak self] _ in
                 self?.continuationsLock.lock()
                 self?.continuations.removeValue(forKey: id)
+                let remainingCount = self?.continuations.count ?? 0
                 self?.continuationsLock.unlock()
+
+                Logger.debug(message: "Event stream terminated (id: \(id.uuidString.prefix(8))..., remaining: \(remainingCount))")
             }
         }
     }
@@ -87,6 +93,12 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
             self.continuationsLock.lock()
             let activeConsumers = Array(self.continuations.values)
             self.continuationsLock.unlock()
+
+            if activeConsumers.isEmpty {
+                Logger.debug(message: "No active listeners for event: \(eventName)")
+            } else {
+                Logger.debug(message: "Dispatching event '\(eventName)' to \(activeConsumers.count) listener(s)")
+            }
 
             // Yield to all consumers
             for continuation in activeConsumers {

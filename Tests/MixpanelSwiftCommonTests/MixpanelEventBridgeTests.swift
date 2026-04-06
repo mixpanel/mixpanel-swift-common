@@ -1,16 +1,21 @@
 //
 //  MixpanelEventBridgeTests.swift
-//  MixpanelSwiftShared
+//  MixpanelSwiftCommon
 //
 //  Created by Mixpanel on 2026-03-31.
 //
 
 import Testing
 import Foundation
-@testable import MixpanelSwiftShared
+@testable import MixpanelSwiftCommon
 
 @Suite("MixpanelEventBridge Tests")
 struct MixpanelEventBridgeTests {
+
+    init() {
+        // Initialize logger to see debug output from EventBridge
+        Logger.initialize()
+    }
 
     // MARK: - Event Struct Tests
 

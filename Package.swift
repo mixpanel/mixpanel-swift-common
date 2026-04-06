@@ -1,10 +1,10 @@
-// swift-tools-version: 6.3
+// swift-tools-version:6.0
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
 
 let package = Package(
-    name: "MixpanelSwiftShared",
+    name: "MixpanelSwiftCommon",
     platforms: [
         .iOS(.v12),
         .tvOS(.v12),
@@ -14,19 +14,19 @@ let package = Package(
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "MixpanelSwiftShared",
-            targets: ["MixpanelSwiftShared"]
+            name: "MixpanelSwiftCommon",
+            targets: ["MixpanelSwiftCommon"]
         ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "MixpanelSwiftShared"
+            name: "MixpanelSwiftCommon"
         ),
         .testTarget(
-            name: "MixpanelSwiftSharedTests",
-            dependencies: ["MixpanelSwiftShared"]
+            name: "MixpanelSwiftCommonTests",
+            dependencies: ["MixpanelSwiftCommon"]
         ),
     ],
     swiftLanguageModes: [.v6]

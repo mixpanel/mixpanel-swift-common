@@ -1,13 +1,13 @@
 //
 //  JSONLogicEvaluatorTests.swift
-//  MixpanelSwiftShared
+//  MixpanelSwiftCommon
 //
 //  Created by Mixpanel on 2026-03-31.
 //
 
 import Testing
 import Foundation
-@testable import MixpanelSwiftShared
+@testable import MixpanelSwiftCommon
 
 @Suite("JSONLogicEvaluator Tests")
 struct JSONLogicEvaluatorTests {

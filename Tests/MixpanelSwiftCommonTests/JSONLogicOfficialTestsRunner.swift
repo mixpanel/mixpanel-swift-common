@@ -1,13 +1,13 @@
 //
 //  JSONLogicTestsRunner.swift
-//  MixpanelSwiftShared
+//  MixpanelSwiftCommon
 //
 //  Test runner for official JSONLogic test suite from https://jsonlogic.com/tests.json
 //
 
 import Testing
 import Foundation
-@testable import MixpanelSwiftShared
+@testable import MixpanelSwiftCommon
 
 @Suite("Official JSONLogic Test Suite")
 struct JSONLogicTestsRunner {
