@@ -18,9 +18,10 @@ import Foundation
 /// ## All Supported Operators
 /// - **Comparison**: `==`, `===`, `!=`, `!==`, `>`, `>=`, `<`, `<=` (with version support)
 /// - **Logical**: `and`, `or`, `!`, `!!`
+/// - **Control Flow**: `if`, `?:`
 /// - **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `min`, `max`
 /// - **String**: `cat`, `substr`, `in`
-/// - **Array**: `merge`, `missing`, `missing_some`
+/// - **Array**: `map`, `filter`, `reduce`, `all`, `some`, `none`, `merge`, `missing`, `missing_some`
 /// - **Data**: `var`, `log`
 ///
 /// ## Version Comparison
@@ -57,11 +58,44 @@ public final class JSONLogicEvaluator {
         return try evaluateExpression(expression, data: data)
     }
 
+    /// Evaluate any value (including arrays with expressions)
+    /// This handles primitives, expressions, and arrays containing expressions
+    /// Data can be a dictionary, array, or primitive value
+    public func evaluateAny(
+        _ value: Any,
+        data: Any
+    ) throws -> Any {
+        // If it's a dictionary (expression), evaluate it
+        if let expression = value as? [String: Any] {
+            // Convert to dict data or use empty dict
+            let dictData = (data as? [String: Any]) ?? [:]
+            return try evaluateExpression(expression, data: dictData, contextData: data)
+        }
+
+        // If it's an array, evaluate any expressions inside
+        if let array = value as? [Any] {
+            return try array.map { element in
+                try evaluateAny(element, data: data)
+            }
+        }
+
+        // Otherwise, return the value as-is
+        return value
+    }
+
     /// Evaluate a JSONLogic expression (returns Any)
+    /// - Parameters:
+    ///   - expression: The JSONLogic expression dictionary
+    ///   - data: Dictionary data for normal operations
+    ///   - contextData: Original data (can be dict, array, or primitive) for var operations
     private func evaluateExpression(
         _ expression: [String: Any],
-        data: [String: Any]
+        data: [String: Any],
+        contextData: Any? = nil
     ) throws -> Any {
+        // Use contextData if provided, otherwise use data
+        let actualContext = contextData ?? data
+
         guard expression.count == 1,
               let (`operator`, args) = expression.first else {
             Logger.error(message: "Invalid JSONLogic expression (must have exactly one operator): \(expression)")
@@ -116,13 +150,29 @@ public final class JSONLogicEvaluator {
         case "merge":
             return try evaluateMerge(args, data: data)
         case "var":
-            return try evaluateVar(args, data: data)
+            return try evaluateVar(args, data: actualContext)
         case "missing":
             return try evaluateMissing(args, data: data)
         case "missing_some":
             return try evaluateMissingSome(args, data: data)
         case "log":
             return try evaluateLog(args, data: data)
+        case "if":
+            return try evaluateIf(args, data: data)
+        case "?:":
+            return try evaluateTernary(args, data: data)
+        case "map":
+            return try evaluateMap(args, data: data)
+        case "filter":
+            return try evaluateFilter(args, data: data)
+        case "reduce":
+            return try evaluateReduce(args, data: data)
+        case "all":
+            return try evaluateAll(args, data: data)
+        case "some":
+            return try evaluateSome(args, data: data)
+        case "none":
+            return try evaluateNone(args, data: data)
         default:
             Logger.error(message: "Unsupported JSONLogic operator: '\(`operator`)' in expression: \(expression)")
             throw EvaluationError.unsupportedOperator(`operator`)
@@ -206,30 +256,46 @@ public final class JSONLogicEvaluator {
 
     // MARK: - Logical Operators
 
-    private func evaluateAnd(_ args: Any, data: [String: Any]) throws -> Bool {
-        guard let expressions = args as? [[String: Any]] else {
+    private func evaluateAnd(_ args: Any, data: [String: Any]) throws -> Any {
+        // And returns the first falsy value, or the last value if all are truthy
+        guard let values = args as? [Any] else {
             throw EvaluationError.invalidExpression
         }
 
-        for expr in expressions {
-            if try !evaluate(expr, data: data) {
-                return false
-            }
+        if values.isEmpty {
+            return NSNull()
         }
-        return true
+
+        var lastValue: Any = NSNull()
+        for value in values {
+            let resolved = try resolveValue(value, data: data)
+            if !truthy(resolved) {
+                return resolved
+            }
+            lastValue = resolved
+        }
+        return lastValue
     }
 
-    private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Bool {
-        guard let expressions = args as? [[String: Any]] else {
+    private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Any {
+        // Or returns the first truthy value, or the last value if all are falsy
+        guard let values = args as? [Any] else {
             throw EvaluationError.invalidExpression
         }
 
-        for expr in expressions {
-            if try evaluate(expr, data: data) {
-                return true
-            }
+        if values.isEmpty {
+            return NSNull()
         }
-        return false
+
+        var lastValue: Any = NSNull()
+        for value in values {
+            let resolved = try resolveValue(value, data: data)
+            if truthy(resolved) {
+                return resolved
+            }
+            lastValue = resolved
+        }
+        return lastValue
     }
 
     private func evaluateNot(_ args: Any, data: [String: Any]) throws -> Bool {
@@ -331,11 +397,19 @@ public final class JSONLogicEvaluator {
         }
 
         let needle = try resolveValue(array[0], data: data)
-        guard let haystack = try resolveValue(array[1], data: data) as? [Any] else {
-            throw EvaluationError.typeMismatch
+        let haystack = try resolveValue(array[1], data: data)
+
+        // Check if haystack is an array
+        if let haystackArray = haystack as? [Any] {
+            return haystackArray.contains { isEqual(needle, $0) }
         }
 
-        return haystack.contains { isEqual(needle, $0) }
+        // Check if both are strings (substring check)
+        if let needleStr = needle as? String, let haystackStr = haystack as? String {
+            return haystackStr.contains(needleStr)
+        }
+
+        throw EvaluationError.typeMismatch
     }
 
     private func evaluateSubStr(_ args: Any, data: [String: Any]) throws -> Any {
@@ -411,34 +485,65 @@ public final class JSONLogicEvaluator {
         return [value]
     }
 
-    private func evaluateVar(_ args: Any, data: [String: Any]) throws -> Any {
+    private func evaluateVar(_ args: Any, data: Any) throws -> Any {
         // Handle default value
-        var varKey: String
+        var varKey: String?
         var defaultValue: Any = NSNull()
 
         if let array = args as? [Any] {
             guard !array.isEmpty else { return data }
-            varKey = toString(array[0])
-            if array.count > 1 {
-                defaultValue = try resolveValue(array[1], data: data)
+            // First element is the key (can be an expression that evaluates to a string)
+            let dictData = (data as? [String: Any]) ?? [:]
+            let keyValue = try resolveValue(array[0], data: dictData)
+
+            if keyValue is NSNull {
+                varKey = nil  // null key means return whole data
+            } else {
+                varKey = toString(keyValue)
             }
+            // Second element (if present) is the default value
+            if array.count > 1 {
+                defaultValue = try resolveValue(array[1], data: dictData)
+            }
+        } else if args is NSNull {
+            varKey = nil  // null arg means return whole data
+        } else if let expr = args as? [String: Any] {
+            // Args can be an expression (e.g., {"?:": [...]})
+            let dictData = (data as? [String: Any]) ?? [:]
+            let keyValue = try evaluateExpression(expr, data: dictData, contextData: data)
+            varKey = toString(keyValue)
         } else {
             varKey = toString(args)
         }
 
-        // Empty key returns entire data
-        if varKey.isEmpty {
+        // Null key returns entire data
+        if varKey == nil {
             return data
         }
 
+        guard let key = varKey else {
+            return data
+        }
+
+        // Empty string key is a special case in JSONLogic - it accesses the current element
+        // This is used in array operations like map, filter, etc.
+        if key.isEmpty {
+            // Look up "" in the data if it's a dict, otherwise return the data itself
+            if let dict = data as? [String: Any] {
+                return dict[""] ?? defaultValue
+            } else {
+                return data
+            }
+        }
+
         // Navigate nested keys
-        let keyParts = varKey.split(separator: ".").map(String.init)
+        let keyParts = key.split(separator: ".").map(String.init)
         var currentData: Any = data
 
-        for key in keyParts {
+        for keyPart in keyParts {
             if let dict = currentData as? [String: Any] {
-                currentData = dict[key] ?? NSNull()
-            } else if let array = currentData as? [Any], let index = Int(key), index >= 0, index < array.count {
+                currentData = dict[keyPart] ?? NSNull()
+            } else if let array = currentData as? [Any], let index = Int(keyPart), index >= 0, index < array.count {
                 currentData = array[index]
             } else {
                 return defaultValue
@@ -453,16 +558,24 @@ public final class JSONLogicEvaluator {
     }
 
     private func evaluateMissing(_ args: Any, data: [String: Any]) throws -> [String] {
+        // If args is an expression, evaluate it first
+        let resolvedArgs: Any
+        if let expr = args as? [String: Any] {
+            resolvedArgs = try evaluateExpression(expr, data: data)
+        } else {
+            resolvedArgs = args
+        }
+
         // Extract keys to check
         let keys: [String]
-        if let array = args as? [Any] {
+        if let array = resolvedArgs as? [Any] {
             // Handle nested array: {"missing": [["email", "phone"]]}
             if array.count == 1, let innerArray = array[0] as? [String] {
                 keys = innerArray
             } else {
                 keys = array.compactMap { $0 as? String }
             }
-        } else if let str = args as? String {
+        } else if let str = resolvedArgs as? String {
             keys = [str]
         } else {
             return []
@@ -517,12 +630,326 @@ public final class JSONLogicEvaluator {
         return value
     }
 
+    // MARK: - Control Flow Operators
+
+    private func evaluateIf(_ args: Any, data: [String: Any]) throws -> Any {
+        guard let array = args as? [Any] else {
+            // If not an array, just evaluate and return it
+            return try resolveValue(args, data: data)
+        }
+
+        // Empty array returns null
+        if array.isEmpty {
+            return NSNull()
+        }
+
+        // Single element: return evaluated element
+        if array.count == 1 {
+            return try resolveValue(array[0], data: data)
+        }
+
+        // If-then or if-then-else or chained if-elseif-else
+        // Pattern: [cond1, val1, cond2, val2, ..., defaultVal]
+        var i = 0
+        while i < array.count {
+            if i == array.count - 1 {
+                // Last element is the default value (no condition)
+                return try resolveValue(array[i], data: data)
+            }
+
+            // Evaluate condition
+            let condition = try resolveValue(array[i], data: data)
+            if truthy(condition) {
+                // Return the corresponding value
+                if i + 1 < array.count {
+                    return try resolveValue(array[i + 1], data: data)
+                }
+                return condition
+            }
+
+            // Move to next condition-value pair
+            i += 2
+        }
+
+        // All conditions false and no default
+        return NSNull()
+    }
+
+    private func evaluateTernary(_ args: Any, data: [String: Any]) throws -> Any {
+        guard let array = args as? [Any], array.count == 3 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let condition = try resolveValue(array[0], data: data)
+        if truthy(condition) {
+            return try resolveValue(array[1], data: data)
+        } else {
+            return try resolveValue(array[2], data: data)
+        }
+    }
+
+    // MARK: - Array Operators
+
+    private func evaluateMap(_ args: Any, data: [String: Any]) throws -> [Any] {
+        guard let array = args as? [Any], array.count == 2 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data - return empty array
+        if sourceArray is NSNull {
+            return []
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        let operation = array[1]
+
+        return try items.map { element in
+            // Create context where element is accessible
+            // For objects: both {"var": ""} and {"var": "property"} work
+            // For primitives: {"var": ""} returns the element
+            let contextData: [String: Any]
+            if let elementDict = element as? [String: Any] {
+                // Element is an object - merge it with empty string key
+                var merged = elementDict
+                merged[""] = element
+                contextData = merged
+            } else {
+                // Element is a primitive - only accessible via ""
+                contextData = ["": element]
+            }
+            return try resolveValue(operation, data: contextData)
+        }
+    }
+
+    private func evaluateFilter(_ args: Any, data: [String: Any]) throws -> [Any] {
+        guard let array = args as? [Any], array.count == 2 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data - return empty array
+        if sourceArray is NSNull {
+            return []
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        let predicate = array[1]
+
+        return try items.filter { element in
+            // Create context where element is accessible
+            let contextData: [String: Any]
+            if let elementDict = element as? [String: Any] {
+                var merged = elementDict
+                merged[""] = element
+                contextData = merged
+            } else {
+                contextData = ["": element]
+            }
+            let result = try resolveValue(predicate, data: contextData)
+            return truthy(result)
+        }
+    }
+
+    private func evaluateReduce(_ args: Any, data: [String: Any]) throws -> Any {
+        guard let array = args as? [Any], array.count >= 2 && array.count <= 3 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data
+        if sourceArray is NSNull {
+            let hasInitial = array.count == 3
+            if hasInitial {
+                return try resolveValue(array[2], data: data)
+            }
+            return NSNull()
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        let operation = array[1]
+        let hasInitial = array.count == 3
+
+        // Handle empty array
+        if items.isEmpty {
+            if hasInitial {
+                return try resolveValue(array[2], data: data)
+            }
+            return NSNull()
+        }
+
+        // Initialize accumulator
+        var accumulator: Any
+        var startIndex = 0
+
+        if hasInitial {
+            accumulator = try resolveValue(array[2], data: data)
+        } else {
+            // No initial value: use first element
+            accumulator = items[0]
+            startIndex = 1
+        }
+
+        // Reduce remaining elements
+        for i in startIndex..<items.count {
+            var contextData = data
+            contextData["current"] = items[i]
+            contextData["accumulator"] = accumulator
+            accumulator = try resolveValue(operation, data: contextData)
+        }
+
+        return accumulator
+    }
+
+    private func evaluateAll(_ args: Any, data: [String: Any]) throws -> Bool {
+        guard let array = args as? [Any], array.count == 2 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data - all returns true for empty/null
+        if sourceArray is NSNull {
+            return true
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        // Empty array: all returns false (per JSONLogic spec)
+        if items.isEmpty {
+            return false
+        }
+
+        let predicate = array[1]
+
+        for element in items {
+            // Create context where element is accessible
+            let contextData: [String: Any]
+            if let elementDict = element as? [String: Any] {
+                var merged = elementDict
+                merged[""] = element
+                contextData = merged
+            } else {
+                contextData = ["": element]
+            }
+            let result = try resolveValue(predicate, data: contextData)
+            if !truthy(result) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+    private func evaluateSome(_ args: Any, data: [String: Any]) throws -> Bool {
+        guard let array = args as? [Any], array.count == 2 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data - some returns false for empty/null
+        if sourceArray is NSNull {
+            return false
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        // Empty array: some returns false
+        if items.isEmpty {
+            return false
+        }
+
+        let predicate = array[1]
+
+        for element in items {
+            // Create context where element is accessible
+            let contextData: [String: Any]
+            if let elementDict = element as? [String: Any] {
+                var merged = elementDict
+                merged[""] = element
+                contextData = merged
+            } else {
+                contextData = ["": element]
+            }
+            let result = try resolveValue(predicate, data: contextData)
+            if truthy(result) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func evaluateNone(_ args: Any, data: [String: Any]) throws -> Bool {
+        guard let array = args as? [Any], array.count == 2 else {
+            throw EvaluationError.invalidExpression
+        }
+
+        let sourceArray = try resolveValue(array[0], data: data)
+
+        // Handle null or missing data - none returns true for empty/null
+        if sourceArray is NSNull {
+            return true
+        }
+
+        guard let items = sourceArray as? [Any] else {
+            throw EvaluationError.typeMismatch
+        }
+
+        // Empty array: none returns true
+        if items.isEmpty {
+            return true
+        }
+
+        let predicate = array[1]
+
+        for element in items {
+            // Create context where element is accessible
+            let contextData: [String: Any]
+            if let elementDict = element as? [String: Any] {
+                var merged = elementDict
+                merged[""] = element
+                contextData = merged
+            } else {
+                contextData = ["": element]
+            }
+            let result = try resolveValue(predicate, data: contextData)
+            if truthy(result) {
+                return false
+            }
+        }
+
+        return true
+    }
+
     // MARK: - Value Resolution
 
     private func resolveValue(_ value: Any, data: [String: Any]) throws -> Any {
         // If it's an expression (dictionary with single operator key), evaluate it
         if let dict = value as? [String: Any], dict.count == 1 {
             return try evaluateExpression(dict, data: data)
+        }
+
+        // If it's an array, evaluate any expressions inside
+        if let array = value as? [Any] {
+            return try array.map { try resolveValue($0, data: data) }
         }
 
         return value
@@ -694,6 +1121,10 @@ public final class JSONLogicEvaluator {
         if let str = value as? String {
             return str
         } else if let num = value as? Double {
+            // If it's a whole number, format without decimal
+            if num.truncatingRemainder(dividingBy: 1) == 0 && !num.isNaN && !num.isInfinite {
+                return String(Int(num))
+            }
             return String(num)
         } else if let num = value as? Int {
             return String(num)
@@ -733,23 +1164,33 @@ public final class JSONLogicEvaluator {
         if lhs is NSNull && rhs is NSNull {
             return true
         }
-        if type(of: lhs) != type(of: rhs) {
-            return false
-        }
 
+        // String comparison
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
             return lhsStr == rhsStr
         }
+
+        // Numeric comparison (Int and Double are both numbers in JSONLogic)
         if let lhsNum = lhs as? Double, let rhsNum = rhs as? Double {
             return lhsNum == rhsNum
         }
         if let lhsNum = lhs as? Int, let rhsNum = rhs as? Int {
             return lhsNum == rhsNum
         }
+        // Int and Double should be equal if values match (both are numbers)
+        if let lhsInt = lhs as? Int, let rhsDouble = rhs as? Double {
+            return Double(lhsInt) == rhsDouble
+        }
+        if let lhsDouble = lhs as? Double, let rhsInt = rhs as? Int {
+            return lhsDouble == Double(rhsInt)
+        }
+
+        // Boolean comparison
         if let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool {
             return lhsBool == rhsBool
         }
 
+        // Different types (string vs number, etc.)
         return false
     }
 
