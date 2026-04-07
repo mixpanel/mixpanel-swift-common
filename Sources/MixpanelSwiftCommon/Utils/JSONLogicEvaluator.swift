@@ -98,7 +98,7 @@ public final class JSONLogicEvaluator {
 
         guard expression.count == 1,
               let (`operator`, args) = expression.first else {
-            Logger.error(message: "Invalid JSONLogic expression (must have exactly one operator): \(expression)")
+            MixpanelLogger.error("Invalid JSONLogic expression (must have exactly one operator): \(expression)")
             throw EvaluationError.invalidExpression
         }
 
@@ -174,7 +174,7 @@ public final class JSONLogicEvaluator {
         case "none":
             return try evaluateNone(args, data: data)
         default:
-            Logger.error(message: "Unsupported JSONLogic operator: '\(`operator`)' in expression: \(expression)")
+            MixpanelLogger.error("Unsupported JSONLogic operator: '\(`operator`)' in expression: \(expression)")
             throw EvaluationError.unsupportedOperator(`operator`)
         }
     }
@@ -964,7 +964,7 @@ public final class JSONLogicEvaluator {
             if isSemanticVersion(lhsStr) && isSemanticVersion(rhsStr),
                let lhsVer = parseVersion(lhsStr),
                let rhsVer = parseVersion(rhsStr) {
-                Logger.debug(message: "Using semantic version comparison: '\(lhsStr)' vs '\(rhsStr)'")
+                MixpanelLogger.debug("Using semantic version comparison: '\(lhsStr)' vs '\(rhsStr)'")
                 return compareVersions(lhsVer, rhsVer) == .orderedDescending
             }
             // Fall back to lexicographic comparison
@@ -984,7 +984,7 @@ public final class JSONLogicEvaluator {
             if isSemanticVersion(lhsStr) && isSemanticVersion(rhsStr),
                let lhsVer = parseVersion(lhsStr),
                let rhsVer = parseVersion(rhsStr) {
-                Logger.debug(message: "Using semantic version comparison: '\(lhsStr)' vs '\(rhsStr)'")
+                MixpanelLogger.debug("Using semantic version comparison: '\(lhsStr)' vs '\(rhsStr)'")
                 return compareVersions(lhsVer, rhsVer) == .orderedAscending
             }
             // Fall back to lexicographic comparison
@@ -1112,7 +1112,7 @@ public final class JSONLogicEvaluator {
         } else if value is NSNull {
             return 0.0
         } else {
-            Logger.error(message: "Type mismatch: cannot convert '\(value)' (type: \(type(of: value))) to number")
+            MixpanelLogger.error("Type mismatch: cannot convert '\(value)' (type: \(type(of: value))) to number")
             throw EvaluationError.typeMismatch
         }
     }

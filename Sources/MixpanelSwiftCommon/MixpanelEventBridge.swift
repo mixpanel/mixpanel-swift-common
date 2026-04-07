@@ -63,7 +63,7 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
             let streamCount = self.continuations.count
             self.continuationsLock.unlock()
 
-            Logger.debug(message: "Event stream created (id: \(id.uuidString.prefix(8))..., active: \(streamCount))")
+            MixpanelLogger.debug("Event stream created (id: \(id.uuidString.prefix(8))..., active: \(streamCount))")
 
             // Setup automatic cleanup on termination
             continuation.onTermination = { [weak self] _ in
@@ -72,7 +72,7 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
                 let remainingCount = self?.continuations.count ?? 0
                 self?.continuationsLock.unlock()
 
-                Logger.debug(message: "Event stream terminated (id: \(id.uuidString.prefix(8))..., remaining: \(remainingCount))")
+                MixpanelLogger.debug("Event stream terminated (id: \(id.uuidString.prefix(8))..., remaining: \(remainingCount))")
             }
         }
     }
@@ -100,9 +100,9 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
         continuationsLock.unlock()
         
         if activeConsumers.isEmpty {
-            Logger.debug(message: "No active listeners for event: \(eventName)")
+            MixpanelLogger.debug("No active listeners for event: \(eventName)")
         } else {
-            Logger.debug(message: "Dispatching event '\(eventName)' to \(activeConsumers.count) listener(s)")
+            MixpanelLogger.debug("Dispatching event '\(eventName)' to \(activeConsumers.count) listener(s)")
         }
         
         // Yield to all consumers

@@ -14,7 +14,7 @@ struct MixpanelEventBridgeTests {
 
     init() {
         // Initialize logger to see debug output from EventBridge
-        Logger.initialize()
+        MixpanelLogger.initialize()
     }
 
     // MARK: - Event Struct Tests

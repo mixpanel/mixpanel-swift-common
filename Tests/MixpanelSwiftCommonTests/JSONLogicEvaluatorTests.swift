@@ -562,4 +562,537 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(expr, data: [:]) == true)
         }
     }
+
+    // MARK: - Control Flow Operators
+
+    @Suite("Control Flow Operators")
+    struct ControlFlowTests {
+        let evaluator = JSONLogicEvaluator()
+
+        // MARK: Ternary Operator (?:)
+
+        @Test("Ternary (?:) with true condition")
+        func testTernaryTrue() throws {
+            let expr: [String: Any] = ["?:": [true, "yes", "no"]]
+            let result = try evaluator.evaluateRaw(expr, data: [:])
+            #expect(result as? String == "yes")
+        }
+
+        @Test("Ternary (?:) with false condition")
+        func testTernaryFalse() throws {
+            let expr: [String: Any] = ["?:": [false, "yes", "no"]]
+            let result = try evaluator.evaluateRaw(expr, data: [:])
+            #expect(result as? String == "no")
+        }
+
+        @Test("Ternary (?:) with truthy/falsy values")
+        func testTernaryTruthyFalsy() throws {
+            // Non-zero number is truthy
+            let expr1: [String: Any] = ["?:": [1, "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr1, data: [:]) as? String == "yes")
+
+            // Zero is falsy
+            let expr2: [String: Any] = ["?:": [0, "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr2, data: [:]) as? String == "no")
+
+            // Empty array is falsy
+            let expr3: [String: Any] = ["?:": [[Any](), "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr3, data: [:]) as? String == "no")
+        }
+
+        @Test("Ternary (?:) with nested expressions")
+        func testTernaryNested() throws {
+            let data: [String: Any] = ["age": 25]
+            let expr: [String: Any] = [
+                "?:": [
+                    [">": [["var": "age"], 18]],
+                    "adult",
+                    "minor"
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? String == "adult")
+        }
+
+        // MARK: If Operator
+
+        @Test("If passthrough (single value)")
+        func testIfPassthrough() throws {
+            let expr: [String: Any] = ["if": [true, "result"]]
+            let result = try evaluator.evaluateRaw(expr, data: [:])
+            #expect(result as? String == "result")
+        }
+
+        @Test("If-then-else")
+        func testIfThenElse() throws {
+            let expr1: [String: Any] = ["if": [true, "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr1, data: [:]) as? String == "yes")
+
+            let expr2: [String: Any] = ["if": [false, "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr2, data: [:]) as? String == "no")
+        }
+
+        @Test("If with chained conditions (if-elseif-else)")
+        func testIfChained() throws {
+            let data: [String: Any] = ["temp": 75]
+            let expr: [String: Any] = [
+                "if": [
+                    [">": [["var": "temp"], 90]], "hot",
+                    [">": [["var": "temp"], 70]], "warm",
+                    "cold"
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? String == "warm")
+        }
+
+        @Test("If with all false conditions returns last value")
+        func testIfAllFalse() throws {
+            let expr: [String: Any] = [
+                "if": [
+                    false, "first",
+                    false, "second",
+                    "default"
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: [:])
+            #expect(result as? String == "default")
+        }
+
+        @Test("If with falsy condition")
+        func testIfFalsyCondition() throws {
+            // Empty array is falsy
+            let expr: [String: Any] = ["if": [[Any](), "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr, data: [:]) as? String == "no")
+
+            // Zero is falsy
+            let expr2: [String: Any] = ["if": [0, "yes", "no"]]
+            #expect(try evaluator.evaluateRaw(expr2, data: [:]) as? String == "no")
+        }
+
+        @Test("If with variable conditions")
+        func testIfWithVariables() throws {
+            let data: [String: Any] = ["premium": true, "age": 30]
+            let expr: [String: Any] = [
+                "if": [
+                    ["var": "premium"], "premium_user",
+                    [">": [["var": "age"], 18]], "standard_user",
+                    "guest"
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? String == "premium_user")
+        }
+    }
+
+    // MARK: - Array Transformation Operators
+
+    @Suite("Array Transformation Operators")
+    struct ArrayTransformationTests {
+        let evaluator = JSONLogicEvaluator()
+
+        // MARK: Filter Operator
+
+        @Test("Filter with simple predicate")
+        func testFilterSimple() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3, 4, 5]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 2]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 3)
+            #expect(result?[0] as? Int == 3)
+            #expect(result?[1] as? Int == 4)
+            #expect(result?[2] as? Int == 5)
+        }
+
+        @Test("Filter with no matches")
+        func testFilterNoMatches() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 10]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 0)
+        }
+
+        @Test("Filter with object arrays")
+        func testFilterObjects() throws {
+            let data: [String: Any] = [
+                "users": [
+                    ["name": "Alice", "age": 30],
+                    ["name": "Bob", "age": 25],
+                    ["name": "Charlie", "age": 35]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "users"],
+                    [">=": [["var": ".age"], 30]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [[String: Any]]
+            #expect(result?.count == 2)
+            #expect(result?[0]["name"] as? String == "Alice")
+            #expect(result?[1]["name"] as? String == "Charlie")
+        }
+
+        @Test("Filter with all matches")
+        func testFilterAllMatch() throws {
+            let data: [String: Any] = ["numbers": [10, 20, 30]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 5]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 3)
+        }
+
+        @Test("Filter with null data")
+        func testFilterNull() throws {
+            let expr: [String: Any] = [
+                "filter": [
+                    NSNull(),
+                    [">": [["var": ""], 2]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: [:]) as? [Any]
+            #expect(result?.count == 0)
+        }
+
+        // MARK: Map Operator
+
+        @Test("Map with simple transformation")
+        func testMapSimple() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3]]
+            let expr: [String: Any] = [
+                "map": [
+                    ["var": "numbers"],
+                    ["*": [["var": ""], 2]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 3)
+            #expect(result?[0] as? Double == 2.0)
+            #expect(result?[1] as? Double == 4.0)
+            #expect(result?[2] as? Double == 6.0)
+        }
+
+        @Test("Map extracting property from objects")
+        func testMapPropertyExtraction() throws {
+            let data: [String: Any] = [
+                "users": [
+                    ["name": "Alice", "age": 30],
+                    ["name": "Bob", "age": 25]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "map": [
+                    ["var": "users"],
+                    ["var": ".name"]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 2)
+            #expect(result?[0] as? String == "Alice")
+            #expect(result?[1] as? String == "Bob")
+        }
+
+        @Test("Map with complex expression")
+        func testMapComplex() throws {
+            let data: [String: Any] = ["items": [10, 20, 30]]
+            let expr: [String: Any] = [
+                "map": [
+                    ["var": "items"],
+                    ["+": [["var": ""], 5]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as? [Any]
+            #expect(result?.count == 3)
+            #expect(result?[0] as? Double == 15.0)
+            #expect(result?[1] as? Double == 25.0)
+            #expect(result?[2] as? Double == 35.0)
+        }
+
+        @Test("Map with null data")
+        func testMapNull() throws {
+            let expr: [String: Any] = [
+                "map": [
+                    NSNull(),
+                    ["*": [["var": ""], 2]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: [:]) as? [Any]
+            #expect(result?.count == 0)
+        }
+
+        // MARK: Reduce Operator
+
+        @Test("Reduce with sum")
+        func testReduceSum() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3, 4]]
+            let expr: [String: Any] = [
+                "reduce": [
+                    ["var": "numbers"],
+                    ["+": [["var": "current"], ["var": "accumulator"]]],
+                    0
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? Double == 10.0)
+        }
+
+        @Test("Reduce with product")
+        func testReduceProduct() throws {
+            let data: [String: Any] = ["numbers": [2, 3, 4]]
+            let expr: [String: Any] = [
+                "reduce": [
+                    ["var": "numbers"],
+                    ["*": [["var": "current"], ["var": "accumulator"]]],
+                    1
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? Double == 24.0)
+        }
+
+        @Test("Reduce without initial value")
+        func testReduceNoInitial() throws {
+            let data: [String: Any] = ["numbers": [5, 10, 15]]
+            let expr: [String: Any] = [
+                "reduce": [
+                    ["var": "numbers"],
+                    ["+": [["var": "current"], ["var": "accumulator"]]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? Double == 30.0)
+        }
+
+        @Test("Reduce with variable initial value")
+        func testReduceVariableInitial() throws {
+            let data: [String: Any] = [
+                "numbers": [1, 2, 3],
+                "starting": 10
+            ]
+            let expr: [String: Any] = [
+                "reduce": [
+                    ["var": "numbers"],
+                    ["+": [["var": "current"], ["var": "accumulator"]]],
+                    ["var": "starting"]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? Double == 16.0)
+        }
+
+        @Test("Reduce with object array")
+        func testReduceObjects() throws {
+            let data: [String: Any] = [
+                "items": [
+                    ["price": 10],
+                    ["price": 20],
+                    ["price": 30]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "reduce": [
+                    ["var": "items"],
+                    ["+": [["var": "current.price"], ["var": "accumulator"]]],
+                    0
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data)
+            #expect(result as? Double == 60.0)
+        }
+
+        @Test("Reduce with null data")
+        func testReduceNull() throws {
+            let expr: [String: Any] = [
+                "reduce": [
+                    NSNull(),
+                    ["+": [["var": "current"], ["var": "accumulator"]]],
+                    0
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: [:])
+            #expect(result as? Int == 0)
+        }
+
+        // MARK: All Operator
+
+        @Test("All with matching predicate")
+        func testAllMatching() throws {
+            let data: [String: Any] = ["numbers": [2, 4, 6, 8]]
+            let expr: [String: Any] = [
+                "all": [
+                    ["var": "numbers"],
+                    ["==": [["%": [["var": ""], 2]], 0]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("All with non-matching predicate")
+        func testAllNonMatching() throws {
+            let data: [String: Any] = ["numbers": [2, 3, 4]]
+            let expr: [String: Any] = [
+                "all": [
+                    ["var": "numbers"],
+                    ["==": [["%": [["var": ""], 2]], 0]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
+
+        @Test("All with empty array")
+        func testAllEmpty() throws {
+            let data: [String: Any] = ["numbers": [Any]()]
+            let expr: [String: Any] = [
+                "all": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 0]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
+
+        @Test("All with object array")
+        func testAllObjects() throws {
+            let data: [String: Any] = [
+                "users": [
+                    ["age": 25],
+                    ["age": 30],
+                    ["age": 35]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "all": [
+                    ["var": "users"],
+                    [">=": [["var": ".age"], 18]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        // MARK: Some Operator
+
+        @Test("Some with matching element")
+        func testSomeMatching() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3, 4, 5]]
+            let expr: [String: Any] = [
+                "some": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 4]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("Some with no matching element")
+        func testSomeNonMatching() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3]]
+            let expr: [String: Any] = [
+                "some": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 10]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
+
+        @Test("Some with empty array")
+        func testSomeEmpty() throws {
+            let data: [String: Any] = ["numbers": [Any]()]
+            let expr: [String: Any] = [
+                "some": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 0]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
+
+        @Test("Some with object array")
+        func testSomeObjects() throws {
+            let data: [String: Any] = [
+                "users": [
+                    ["premium": false],
+                    ["premium": true],
+                    ["premium": false]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "some": [
+                    ["var": "users"],
+                    ["var": ".premium"]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        // MARK: None Operator
+
+        @Test("None with non-matching elements")
+        func testNoneNonMatching() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3, 4]]
+            let expr: [String: Any] = [
+                "none": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 10]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("None with matching element")
+        func testNoneMatching() throws {
+            let data: [String: Any] = ["numbers": [1, 2, 3, 15]]
+            let expr: [String: Any] = [
+                "none": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 10]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
+
+        @Test("None with empty array")
+        func testNoneEmpty() throws {
+            let data: [String: Any] = ["numbers": [Any]()]
+            let expr: [String: Any] = [
+                "none": [
+                    ["var": "numbers"],
+                    [">": [["var": ""], 0]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("None with object array")
+        func testNoneObjects() throws {
+            let data: [String: Any] = [
+                "users": [
+                    ["banned": false],
+                    ["banned": false],
+                    ["banned": false]
+                ]
+            ]
+            let expr: [String: Any] = [
+                "none": [
+                    ["var": "users"],
+                    ["var": ".banned"]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+    }
 }

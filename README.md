@@ -12,11 +12,11 @@ A thread-safe logging system with explicit initialization.
 import MixpanelSwiftCommon
 
 // In your SDK initialization
-Logger.initialize() // Uses build-appropriate defaults
+MixpanelLogger.initialize() // Uses build-appropriate defaults
 
 // Then log anywhere
-Logger.debug(message: "Debug info")
-Logger.error(message: "Error occurred")
+MixpanelLogger.debug(message: "Debug info")
+MixpanelLogger.error(message: "Error occurred")
 ```
 
 **Features:**
@@ -76,7 +76,7 @@ dependencies: [
 ```swift
 public class Mixpanel {
     public init(...) {
-        Logger.initialize() // Enable logging
+        MixpanelLogger.initialize() // Enable logging
         // ... rest of initialization
     }
 }
@@ -87,7 +87,7 @@ public class Mixpanel {
 ```swift
 public class MixpanelSessionReplay {
     public init(...) {
-        Logger.initialize() // Enable logging
+        MixpanelLogger.initialize() // Enable logging
         // ... rest of initialization
     }
 }
@@ -95,7 +95,7 @@ public class MixpanelSessionReplay {
 
 ### Multiple SDKs
 
-When multiple SDKs use this library, each can call `Logger.initialize()` independently.
+When multiple SDKs use this library, each can call `MixpanelLogger.initialize()` independently.
 Log levels will be unioned (most permissive wins).
 
 ## License
