@@ -15,8 +15,8 @@ import MixpanelSwiftCommon
 MixpanelLogger.initialize() // Uses build-appropriate defaults
 
 // Then log anywhere
-MixpanelLogger.debug(message: "Debug info")
-MixpanelLogger.error(message: "Error occurred")
+MixpanelLogger.debug("Debug info")
+MixpanelLogger.error("Error occurred")
 ```
 
 **Features:**
