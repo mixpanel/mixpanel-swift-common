@@ -67,11 +67,13 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
 
             // Setup automatic cleanup on termination
             continuation.onTermination = { [weak self] _ in
-                self?.continuationsLock.lock()
-                self?.continuations.removeValue(forKey: id)
-                let remainingCount = self?.continuations.count ?? 0
-                self?.continuationsLock.unlock()
+                guard let self else { return }
 
+                self.continuationsLock.lock()
+                defer { self.continuationsLock.unlock() }
+
+                self.continuations.removeValue(forKey: id)
+                let remainingCount = self.continuations.count
                 MixpanelLogger.debug("Event stream terminated (id: \(id.uuidString.prefix(8))..., remaining: \(remainingCount))")
             }
         }
