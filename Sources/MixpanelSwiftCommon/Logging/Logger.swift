@@ -80,7 +80,7 @@ public class Logger {
     private static nonisolated(unsafe) var loggers = [Logging]()
     private static nonisolated(unsafe) var enabledLevels = Set<LogLevel>()
     private static nonisolated(unsafe) var initialized = false
-    private static let serialQueue = DispatchQueue(label: "com.mixpanel.shared.logger")
+    private static let serialQueue = DispatchQueue(label: "com.mixpanel.common.logger")
 
     /// Initialize the logger with optional custom configuration.
     ///
