@@ -132,24 +132,24 @@ public class MixpanelLogger {
     // MARK: - Public Logging API
     
     public class func debug(_ message: @autoclosure () -> String, file: String = #file, function: String = #function) {
-        log(level: .debug, message: message(), file: file, function: function)
+        log(level: .debug, message: message, file: file, function: function)
     }
     
     public class func info(_ message: @autoclosure () -> String, file: String = #file, function: String = #function) {
-        log(level: .info, message: message(), file: file, function: function)
+        log(level: .info, message: message, file: file, function: function)
     }
     
     public class func warn(_ message: @autoclosure () -> String, file: String = #file, function: String = #function) {
-        log(level: .warning, message: message(), file: file, function: function)
+        log(level: .warning, message: message, file: file, function: function)
     }
     
     public class func error(_ message: @autoclosure () -> String, file: String = #file, function: String = #function) {
-        log(level: .error, message: message(), file: file, function: function)
+        log(level: .error, message: message, file: file, function: function)
     }
     
     // MARK: - Core Implementation
     
-    private class func log(level: LogLevel, message: String, file: String, function: String) {
+    private class func log(level: LogLevel, message: () -> String, file: String, function: String) {
         // Refinement 1: Snapshot state under a single lock to minimize contention
         lock.lock()
         let isInit = _initialized
@@ -159,20 +159,22 @@ public class MixpanelLogger {
         
         guard isInit && isEnabled else { return }
         
+        let messageString = message()
+        
         let filename = (file as NSString).lastPathComponent
         
 #if DEBUG
         if let testLogger = testLogger {
-            testLogger.log(level: level, message: message, file: filename, function: function)
+            testLogger.log(level: level, message: messageString, file: filename, function: function)
         }
 #endif
         
         if useModern {
             if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
-                logWithModernAPI(level: level, message: message, filename: filename, function: function)
+                logWithModernAPI(level: level, message: messageString, filename: filename, function: function)
             }
         } else {
-            logWithLegacyAPI(level: level, message: message, filename: filename, function: function)
+            logWithLegacyAPI(level: level, message: messageString, filename: filename, function: function)
         }
     }
     
