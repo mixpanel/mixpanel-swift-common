@@ -114,10 +114,10 @@ struct JSONLogicTestsRunner {
             }
         }
 
-        // Assert that we have a high success rate on supported operators
+        // Assert that all supported tests pass
         let supportedTestCount = passedCount + failedCount
         if supportedTestCount > 0 {
-            #expect(passedCount == passedCount, "All tests should pass")
+            #expect(failedCount == 0, "All supported tests should pass")
         }
     }
 
