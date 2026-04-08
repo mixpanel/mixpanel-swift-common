@@ -96,20 +96,15 @@ struct MixpanelEventBridgeTests {
         let bridge = MixpanelEventBridge.shared
         let stream = bridge.eventStream()
 
-        let consumer = Task {
-            for await event in stream {
-                return event
-            }
-            return nil as MixpanelEvent?
-        }
-
+        var iterator = stream.makeAsyncIterator()
+        
         bridge.notifyListeners(
             eventName: "termination_test_event",
             properties: ["key": "value"]
         )
 
-        let event = await consumer.value
-        #expect(event != nil)
+        let event = await iterator.next()
+        
         #expect(event?.eventName == "termination_test_event")
         #expect(event?.properties["key"] as? String == "value")
     }
