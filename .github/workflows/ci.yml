@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Build and Test on ${{ matrix.platform }}
         run: |
-          if [ "${{ matrix.platform }}" = "iOS" ]; then
+          if [ "${{ matrix.platform }}" = "macOS" ]; then
             swift test
           else
             SIMULATOR=$(xcrun simctl list devices available -j | \
