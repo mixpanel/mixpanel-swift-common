@@ -124,70 +124,73 @@ struct LoggerInitializationTests {
 
 @Suite("Logger Message Counting (Debug Only)", .serialized)
 struct LoggerMessageCountingTests {
-
-    /// Test-only logger that counts messages
-    class CountingTestLogger: TestLogging {
-        var messageCount = 0
-        var messages: [(level: LogLevel, message: String)] = []
-
-        func log(level: LogLevel, message: String, file: String, function: String) {
+    class MockLogger: MixpanelLogger {
+        static var messageCount = 0
+        static var messages: [(level: LogLevel, message: String)] = []
+        
+        override class func logWithModernAPI(level: LogLevel, message: String, filename: String, function: String) {
             messageCount += 1
             messages.append((level: level, message: message))
+        }
+
+        override class func logWithLegacyAPI(level: LogLevel, message: String, filename: String, function: String) {
+            messageCount += 1
+            messages.append((level: level, message: message))
+        }
+        
+        override class func reset() {
+            super.reset()
+            messageCount = 0
+            messages.removeAll()
         }
     }
 
     @Test("Can count messages using test logger injection")
     func testMessageCounting() {
-        MixpanelLogger.reset()
+        MockLogger.reset()
 
-        let testLogger = CountingTestLogger()
-        MixpanelLogger.testLogger = testLogger
-        MixpanelLogger.initialize()
+        MockLogger.initialize()
 
         // Log some messages
-        MixpanelLogger.error("Error 1")
-        MixpanelLogger.warn("Warning 1")
-        MixpanelLogger.debug("Debug 1")
+        MockLogger.error("Error 1")
+        MockLogger.warn("Warning 1")
+        MockLogger.debug("Debug 1")
 
         // Verify counting works
-        #expect(testLogger.messageCount == 3)
-        #expect(testLogger.messages[0].level == .error)
-        #expect(testLogger.messages[0].message == "Error 1")
-        #expect(testLogger.messages[1].level == .warning)
-        #expect(testLogger.messages[2].level == .debug)
+        #expect(MockLogger.messageCount == 3)
+        #expect(MockLogger.messages[0].level == .error)
+        #expect(MockLogger.messages[0].message == "Error 1")
+        #expect(MockLogger.messages[1].level == .warning)
+        #expect(MockLogger.messages[2].level == .debug)
     }
 
     @Test("Test logger respects log levels")
     func testLoggerRespectsLevels() {
-        MixpanelLogger.reset()
+        MockLogger.reset()
 
-        let testLogger = CountingTestLogger()
-        MixpanelLogger.testLogger = testLogger
-        MixpanelLogger.initialize(levels: [.error])  // Only errors enabled
+        MockLogger.initialize(levels: [.error])  // Only errors enabled
 
-        MixpanelLogger.error("Error 1")
-        MixpanelLogger.warn("Warning 1")  // Should not be logged
-        MixpanelLogger.debug("Debug 1")   // Should not be logged
+        MockLogger.error("Error 1")
+        MockLogger.warn("Warning 1")  // Should not be logged
+        MockLogger.debug("Debug 1")   // Should not be logged
 
         // Only error should be counted
-        #expect(testLogger.messageCount == 1)
-        #expect(testLogger.messages[0].level == .error)
+        #expect(MockLogger.messageCount == 1)
+        #expect(MockLogger.messages[0].level == .error)
     }
 
     @Test("Test logger captures message content")
     func testMessageContent() {
-        MixpanelLogger.reset()
+        MockLogger.reset()
 
-        let testLogger = CountingTestLogger()
-        MixpanelLogger.testLogger = testLogger
-        MixpanelLogger.initialize()
+        MockLogger.initialize()
 
-        MixpanelLogger.info("User ID: 12345")
-        MixpanelLogger.error("Network error: timeout")
+        MockLogger.info("User ID: 12345")
+        MockLogger.error("Network error: timeout")
 
-        #expect(testLogger.messageCount == 2)
-        #expect(testLogger.messages[0].message == "User ID: 12345")
-        #expect(testLogger.messages[1].message == "Network error: timeout")
+        #expect(MockLogger.messageCount == 2)
+        #expect(MockLogger.messages[0].message == "User ID: 12345")
+        #expect(MockLogger.messages[1].message == "Network error: timeout")
     }
 }
 

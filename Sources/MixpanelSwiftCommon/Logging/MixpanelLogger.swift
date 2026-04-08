@@ -45,11 +45,6 @@ public class MixpanelLogger {
     private static var _initialized = false
     private static var _useModernAPI = false
     
-    #if DEBUG
-    /// Test-only: allows injecting a test logger for message verification
-    internal static var testLogger: TestLogging?
-    #endif
-    
     /// Initialize the logger with subsystem and category.
     public class func initialize(
         subsystem: String = "com.mixpanel.common",
@@ -116,9 +111,6 @@ public class MixpanelLogger {
         }
         _legacyLog = nil
         _enabledLevels.removeAll()
-        #if DEBUG
-        testLogger = nil
-        #endif
     }
     
     private class func defaultLogLevels() -> Set<LogLevel> {
@@ -163,12 +155,6 @@ public class MixpanelLogger {
         
         let filename = (file as NSString).lastPathComponent
         
-#if DEBUG
-        if let testLogger = testLogger {
-            testLogger.log(level: level, message: messageString, file: filename, function: function)
-        }
-#endif
-        
         if useModern {
             if #available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *) {
                 logWithModernAPI(level: level, message: messageString, filename: filename, function: function)
@@ -179,7 +165,7 @@ public class MixpanelLogger {
     }
     
     @available(iOS 14.0, macOS 11.0, tvOS 14.0, watchOS 7.0, *)
-    private class func logWithModernAPI(level: LogLevel, message: String, filename: String, function: String) {
+    class func logWithModernAPI(level: LogLevel, message: String, filename: String, function: String) {
         guard let logger = _modernLogger else { return }
         let formatted = "\(filename):\(function) - \(message)"
         
@@ -192,7 +178,7 @@ public class MixpanelLogger {
         }
     }
     
-    private class func logWithLegacyAPI(level: LogLevel, message: String, filename: String, function: String) {
+    class func logWithLegacyAPI(level: LogLevel, message: String, filename: String, function: String) {
         guard let osLog = _legacyLog else { return }
         
         // Refinement 2: Use %{public}@ for Swift strings in C-based os_log
@@ -206,9 +192,3 @@ public class MixpanelLogger {
         )
     }
 }
-
-#if DEBUG
-public protocol TestLogging {
-    func log(level: LogLevel, message: String, file: String, function: String)
-}
-#endif
