@@ -60,14 +60,9 @@ This package is intended for use by Mixpanel SDK developers.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mixpanel/mixpanel-swift-common.git", from: "2.0.0")
+    .package(url: "https://github.com/mixpanel/mixpanel-swift-common.git", from: "1.0.0")
 ]
 ```
-
-## Requirements
-
-- Swift 6.0+
-- iOS 12.0+ / macOS 10.13+ / tvOS 12.0+ / watchOS 4.0+
 
 ## Usage in SDKs
 
