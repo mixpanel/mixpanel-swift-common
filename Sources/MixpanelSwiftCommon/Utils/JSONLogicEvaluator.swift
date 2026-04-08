@@ -607,7 +607,14 @@ public final class JSONLogicEvaluator {
             throw EvaluationError.typeMismatch
         }
 
-        guard let keys = array[1] as? [String] else {
+        let keys: [String]
+        if let stringKeys = array[1] as? [String] {
+            keys = stringKeys
+        } else if let anyKeys = array[1] as? [Any] {
+            keys = anyKeys.compactMap { $0 as? String }
+        } else if let key = array[1] as? String {
+            keys = [key]
+        } else {
             throw EvaluationError.invalidExpression
         }
 
