@@ -44,25 +44,73 @@ struct MixpanelEventBridgeTests {
 
     // MARK: - Event Stream Tests
 
-    @Test("Event stream can be created")
     @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
-    func testEventStreamCreation() {
+    private func firstEvent(
+        from stream: AsyncStream<MixpanelEvent>,
+        timeoutNanoseconds: UInt64 = 1_000_000_000
+    ) async -> MixpanelEvent? {
+        await withTaskGroup(of: MixpanelEvent?.self) { group in
+            group.addTask {
+                for await event in stream {
+                    return event
+                }
+                return nil
+            }
+
+            group.addTask {
+                try? await Task.sleep(nanoseconds: timeoutNanoseconds)
+                return nil
+            }
+
+            let event = await group.next() ?? nil
+            group.cancelAll()
+            return event
+        }
+    }
+
+    @Test("Event stream yields notified events")
+    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+    func testEventStreamReceivesNotifiedEvent() async {
         let bridge = MixpanelEventBridge.shared
         let stream = bridge.eventStream()
 
-        // Verify stream is created (type check)
-        #expect(stream is AsyncStream<MixpanelEvent>)
-    }
+        let awaitedEvent = Task {
+            await firstEvent(from: stream)
+        }
 
-    @Test("Notify listeners executes without error")
-    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
-    func testNotifyListeners() {
-        let bridge = MixpanelEventBridge.shared
-
-        // Should not crash
         bridge.notifyListeners(
             eventName: "test_event",
+            properties: ["key": "value", "number": 42]
+        )
+
+        let event = await awaitedEvent.value
+        #expect(event != nil)
+        #expect(event?.eventName == "test_event")
+        #expect(event?.properties["key"] as? String == "value")
+        #expect(event?.properties["number"] as? Int == 42)
+    }
+
+    @Test("Stream consumer can receive one event and finish")
+    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
+    func testNotifyListenersWithConsumingTask() async {
+        let bridge = MixpanelEventBridge.shared
+        let stream = bridge.eventStream()
+
+        let consumer = Task {
+            for await event in stream {
+                return event
+            }
+            return nil as MixpanelEvent?
+        }
+
+        bridge.notifyListeners(
+            eventName: "termination_test_event",
             properties: ["key": "value"]
         )
+
+        let event = await consumer.value
+        #expect(event != nil)
+        #expect(event?.eventName == "termination_test_event")
+        #expect(event?.properties["key"] as? String == "value")
     }
 }
