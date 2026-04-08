@@ -44,7 +44,7 @@ struct JSONLogicTestsRunner {
 
         for (index, testEntry) in allTests.enumerated() {
             // Handle section headers (strings starting with "# ")
-            if let sectionName = testEntry as? String {
+            if let sectionName = testEntry as? String, sectionName.hasPrefix("# ") {
                 currentSection = sectionName
                 continue
             }
