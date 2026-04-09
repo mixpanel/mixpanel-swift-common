@@ -13,8 +13,6 @@ import Foundation
 struct MixpanelEventBridgeTests {
 
     init() {
-        // Initialize logger to see debug output from EventBridge
-        MixpanelLogger.initialize()
     }
 
     // MARK: - Event Struct Tests

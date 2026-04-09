@@ -3,31 +3,6 @@ Shared common functionality for Mixpanel iOS SDKs.
 
 ## Components
 
-### Logger
-A thread-safe logging system with explicit initialization.
-
-**Important:** Logger must be initialized before use:
-
-```swift
-import MixpanelSwiftCommon
-
-// In your SDK initialization
-MixpanelLogger.initialize() // Uses build-appropriate defaults
-
-// Then log anywhere
-MixpanelLogger.debug("Debug info")
-MixpanelLogger.error("Error occurred")
-```
-
-**Features:**
-- Explicit initialization (required)
-- Build-aware defaults (DEBUG vs RELEASE)
-- Multi-SDK support with level union
-- Thread-safe operations
-- Extensible with custom loggers
-
-[See full Logger documentation →](Sources/MixpanelSwiftCommon/Logging/README.md)
-
 ### MixpanelEventBridge
 Event bridge for multicasting Mixpanel events to external consumers via AsyncStream.
 
@@ -64,34 +39,6 @@ dependencies: [
 ]
 ```
 
-## Usage in SDKs
-
-### mixpanel-swift
-
-```swift
-public class Mixpanel {
-    public init(...) {
-        MixpanelLogger.initialize() // Enable logging
-        // ... rest of initialization
-    }
-}
-```
-
-### session-replay
-
-```swift
-public class MixpanelSessionReplay {
-    public init(...) {
-        MixpanelLogger.initialize() // Enable logging
-        // ... rest of initialization
-    }
-}
-```
-
-### Multiple SDKs
-
-When multiple SDKs use this library, each can call `MixpanelLogger.initialize()` independently.
-Log levels will be unioned (most permissive wins).
 
 ## License
 
