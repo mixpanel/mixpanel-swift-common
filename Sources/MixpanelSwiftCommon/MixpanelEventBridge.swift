@@ -60,7 +60,6 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
             // Register continuation
             self.continuationsLock.lock()
             self.continuations[id] = continuation
-            let streamCount = self.continuations.count
             self.continuationsLock.unlock()
 
             // Setup automatic cleanup on termination
@@ -71,7 +70,6 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
                 defer { self.continuationsLock.unlock() }
 
                 self.continuations.removeValue(forKey: id)
-                let remainingCount = self.continuations.count
             }
         }
     }
