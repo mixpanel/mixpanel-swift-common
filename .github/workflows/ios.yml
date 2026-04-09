@@ -14,11 +14,13 @@ jobs:
     strategy:
       matrix:
         destination: ['platform=iOS Simulator,name=iPhone 16,OS=18.0']
-
+    
     steps:
-    - uses: actions/checkout@v4
-
-    - uses: maxim-lobanov/setup-xcode@v1
+    - name: Checkout
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.2
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.6.0
       with:
         xcode-version: '16.2'
 
