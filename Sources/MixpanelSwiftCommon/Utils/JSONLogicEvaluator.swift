@@ -368,6 +368,10 @@ public final class JSONLogicEvaluator {
         }
         let a = try toNumber(values[0])
         let b = try toNumber(values[1])
+        // Return 0 for modulo by zero (matches Android behavior)
+        if b == 0 {
+            return 0
+        }
         return a.truncatingRemainder(dividingBy: b)
     }
 
@@ -825,9 +829,9 @@ public final class JSONLogicEvaluator {
 
         let sourceArray = try resolveValue(array[0], data: data)
 
-        // Handle null or missing data - all returns true for empty/null
+        // Handle null or missing data - all returns false for empty/null
         if sourceArray is NSNull {
-            return true
+            return false
         }
 
         guard let items = sourceArray as? [Any] else {
@@ -963,6 +967,14 @@ public final class JSONLogicEvaluator {
     // MARK: - Comparison Logic with Type Coercion & Version Support
 
     private func isGreaterThan(_ lhs: Any, _ rhs: Any) throws -> Bool {
+        // Handle array unwrapping first (prevents throws on arrays)
+        if let lhsArray = lhs as? [Any] {
+            return try isGreaterThan(lhsArray.first ?? NSNull(), rhs)
+        }
+        if let rhsArray = rhs as? [Any] {
+            return try isGreaterThan(lhs, rhsArray.first ?? NSNull())
+        }
+
         // String-to-string comparison (with version support)
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
             // Try semantic version comparison first
@@ -982,6 +994,14 @@ public final class JSONLogicEvaluator {
     }
 
     private func isLessThan(_ lhs: Any, _ rhs: Any) throws -> Bool {
+        // Handle array unwrapping first (prevents throws on arrays)
+        if let lhsArray = lhs as? [Any] {
+            return try isLessThan(lhsArray.first ?? NSNull(), rhs)
+        }
+        if let rhsArray = rhs as? [Any] {
+            return try isLessThan(lhs, rhsArray.first ?? NSNull())
+        }
+
         // String-to-string comparison (with version support)
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
             // Try semantic version comparison first
@@ -1001,12 +1021,18 @@ public final class JSONLogicEvaluator {
     }
 
     private func isEqual(_ lhs: Any, _ rhs: Any) -> Bool {
-        // NSNull handling
+        // NSNull to NSNull comparison
         if lhs is NSNull && rhs is NSNull {
             return true
         }
-        if lhs is NSNull || rhs is NSNull {
-            return false
+
+        // Null-to-number coercion (JSONLogic standard: null == 0)
+        // RECURSIVE: This allows null to coerce through all type paths
+        if lhs is NSNull {
+            return isEqual(0, rhs)
+        }
+        if rhs is NSNull {
+            return isEqual(lhs, 0)
         }
 
         // String comparison (with version normalization)
@@ -1056,9 +1082,64 @@ public final class JSONLogicEvaluator {
             }
         }
 
-        // Bool comparison
+        // Bool comparison (direct bool-to-bool)
         if let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool {
             return lhsBool == rhsBool
+        }
+
+        // Bool-to-Number/String coercion (for JSON compatibility)
+        // IMPORTANT: Use type discrimination to avoid NSNumber(1) being treated as Bool
+        if isTrueBoolValue(lhs) {
+            let lhsBool = lhs as! Bool
+            let lhsAsNum = lhsBool ? 1.0 : 0.0
+
+            // Check numeric first
+            if let rhsNum = rhs as? Double {
+                return lhsAsNum == rhsNum
+            }
+            if let rhsNum = rhs as? Int {
+                return lhsAsNum == Double(rhsNum)
+            }
+            // Then numeric string: true == "1", false == "0"
+            if let rhsStr = rhs as? String, let rhsNum = Double(rhsStr) {
+                return lhsAsNum == rhsNum
+            }
+            // Finally literal string: true == "true", false == "false"
+            if let rhsStr = rhs as? String {
+                let lhsAsStr = lhsBool ? "true" : "false"
+                return lhsAsStr == rhsStr
+            }
+        }
+
+        if isTrueBoolValue(rhs) {
+            let rhsBool = rhs as! Bool
+            let rhsAsNum = rhsBool ? 1.0 : 0.0
+
+            // Check numeric first
+            if let lhsNum = lhs as? Double {
+                return lhsNum == rhsAsNum
+            }
+            if let lhsNum = lhs as? Int {
+                return Double(lhsNum) == rhsAsNum
+            }
+            // Then numeric string: "1" == true, "0" == false
+            if let lhsStr = lhs as? String, let lhsNum = Double(lhsStr) {
+                return lhsNum == rhsAsNum
+            }
+            // Finally literal string: "true" == true, "false" == false
+            if let lhsStr = lhs as? String {
+                let rhsAsStr = rhsBool ? "true" : "false"
+                return lhsStr == rhsAsStr
+            }
+        }
+
+        // Array unwrapping (JSONLogic standard: [x] == x)
+        // Single-element arrays unwrap to their element
+        if let lhsArray = lhs as? [Any], lhsArray.count == 1 {
+            return isEqual(lhsArray.first ?? NSNull(), rhs)
+        }
+        if let rhsArray = rhs as? [Any], rhsArray.count == 1 {
+            return isEqual(lhs, rhsArray.first ?? NSNull())
         }
 
         return false
@@ -1194,6 +1275,18 @@ public final class JSONLogicEvaluator {
 
         // Different types (string vs number, etc.)
         return false
+    }
+
+    /// Checks if a value is a true Boolean (not NSNumber that can cast to Bool)
+    /// This prevents NSNumber(0) and NSNumber(1) from being treated as booleans
+    /// Guards against non-bridgeable types to prevent crashes
+    private func isTrueBoolValue(_ value: Any) -> Bool {
+        // First check if it's an NSNumber (bridgeable to CFTypeRef)
+        // This prevents crashes from custom Swift structs or non-bridgeable types
+        guard let number = value as? NSNumber else {
+            return false
+        }
+        return CFGetTypeID(number as CFTypeRef) == CFBooleanGetTypeID()
     }
 
     private func resolveArray(_ args: Any, data: [String: Any]) throws -> [Any] {

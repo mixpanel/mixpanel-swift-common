@@ -41,6 +41,168 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(expr2, data: [:]) == true)
         }
 
+        @Test("Loose equality (==) with boolean coercion")
+        func testLooseEqualityWithBooleanCoercion() throws {
+            // Bool to String coercion
+            let expr1: [String: Any] = ["==": [true, "true"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [false, "false"]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": ["true", true]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+
+            let expr4: [String: Any] = ["==": ["false", false]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == true)
+
+            // Bool to Number coercion
+            let expr5: [String: Any] = ["==": [true, 1]]
+            #expect(try evaluator.evaluate(expr5, data: [:]) == true)
+
+            let expr6: [String: Any] = ["==": [false, 0]]
+            #expect(try evaluator.evaluate(expr6, data: [:]) == true)
+
+            let expr7: [String: Any] = ["==": [1, true]]
+            #expect(try evaluator.evaluate(expr7, data: [:]) == true)
+
+            let expr8: [String: Any] = ["==": [0, false]]
+            #expect(try evaluator.evaluate(expr8, data: [:]) == true)
+
+            // Negative cases
+            let expr9: [String: Any] = ["==": [true, "false"]]
+            #expect(try evaluator.evaluate(expr9, data: [:]) == false)
+
+            let expr10: [String: Any] = ["==": [true, 0]]
+            #expect(try evaluator.evaluate(expr10, data: [:]) == false)
+
+            // Test with var expressions (your use case)
+            let data: [String: Any] = ["is_organic": true]
+            let expr11: [String: Any] = ["==": [["var": "is_organic"], "true"]]
+            #expect(try evaluator.evaluate(expr11, data: data) == true)
+
+            let expr12: [String: Any] = ["==": [["var": "is_organic"], 1]]
+            #expect(try evaluator.evaluate(expr12, data: data) == true)
+
+            // Bool to numeric string coercion (critical for JSON rules)
+            let expr13: [String: Any] = ["==": [true, "1"]]
+            #expect(try evaluator.evaluate(expr13, data: [:]) == true)
+
+            let expr14: [String: Any] = ["==": [false, "0"]]
+            #expect(try evaluator.evaluate(expr14, data: [:]) == true)
+
+            let expr15: [String: Any] = ["==": ["1", true]]
+            #expect(try evaluator.evaluate(expr15, data: [:]) == true)
+
+            let expr16: [String: Any] = ["==": ["0", false]]
+            #expect(try evaluator.evaluate(expr16, data: [:]) == true)
+
+            // Negative cases
+            let expr17: [String: Any] = ["==": [true, "0"]]
+            #expect(try evaluator.evaluate(expr17, data: [:]) == false)
+
+            let expr18: [String: Any] = ["==": [false, "1"]]
+            #expect(try evaluator.evaluate(expr18, data: [:]) == false)
+
+            // Non-numeric strings should not match
+            let expr19: [String: Any] = ["==": [true, "yes"]]
+            #expect(try evaluator.evaluate(expr19, data: [:]) == false)
+        }
+
+        @Test("Loose equality (==) with null coercion")
+        func testLooseEqualityWithNullCoercion() throws {
+            // Null to number coercion (JSONLogic standard: null == 0)
+            let expr1: [String: Any] = ["==": [NSNull(), 0]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [0, NSNull()]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [NSNull(), 0.0]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+
+            // Null does not equal non-zero numbers
+            let expr4: [String: Any] = ["==": [NSNull(), 1]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == false)
+
+            let expr5: [String: Any] = ["==": [NSNull(), -1]]
+            #expect(try evaluator.evaluate(expr5, data: [:]) == false)
+
+            // Null to null
+            let expr6: [String: Any] = ["==": [NSNull(), NSNull()]]
+            #expect(try evaluator.evaluate(expr6, data: [:]) == true)
+
+            // Null does not equal strings, arrays, etc.
+            let expr7: [String: Any] = ["==": [NSNull(), "null"]]
+            #expect(try evaluator.evaluate(expr7, data: [:]) == false)
+
+            let expr8: [String: Any] = ["==": [NSNull(), ""]]
+            #expect(try evaluator.evaluate(expr8, data: [:]) == false)
+
+            let expr9: [String: Any] = ["==": [NSNull(), []]]
+            #expect(try evaluator.evaluate(expr9, data: [:]) == false)
+
+            // Test with missing var (returns NSNull)
+            let data: [String: Any] = ["name": "John"]
+            let expr10: [String: Any] = ["==": [["var": "age"], 0]]
+            #expect(try evaluator.evaluate(expr10, data: data) == true)
+
+            let expr11: [String: Any] = ["==": [["var": "missing"], 0]]
+            #expect(try evaluator.evaluate(expr11, data: [:]) == true)
+
+            // Explicit null in data
+            let dataWithNull: [String: Any] = ["count": NSNull()]
+            let expr12: [String: Any] = ["==": [["var": "count"], 0]]
+            #expect(try evaluator.evaluate(expr12, data: dataWithNull) == true)
+        }
+
+        @Test("Loose equality (==) with array unwrapping")
+        func testLooseEqualityWithArrayUnwrapping() throws {
+            // Single-element array unwrapping
+            let expr1: [String: Any] = ["==": [[5], 5]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [5, [5]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [["hello"], "hello"]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+
+            let expr4: [String: Any] = ["==": [[true], true]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == true)
+
+            // Multi-element arrays do not unwrap
+            let expr5: [String: Any] = ["==": [[5, 6], 5]]
+            #expect(try evaluator.evaluate(expr5, data: [:]) == false)
+
+            let expr6: [String: Any] = ["==": [[5, 6], [5, 6]]]
+            #expect(try evaluator.evaluate(expr6, data: [:]) == false)
+
+            // Empty array does not equal scalar
+            let expr7: [String: Any] = ["==": [[], 0]]
+            #expect(try evaluator.evaluate(expr7, data: [:]) == false)
+
+            // Nested unwrapping
+            let expr8: [String: Any] = ["==": [[5], [5]]]
+            #expect(try evaluator.evaluate(expr8, data: [:]) == true)
+
+            // Array with null unwraps and coerces
+            let expr9: [String: Any] = ["==": [[NSNull()], 0]]
+            #expect(try evaluator.evaluate(expr9, data: [:]) == true)
+
+            // Test with var that returns single-element array
+            let data: [String: Any] = ["selected": [42]]
+            let expr10: [String: Any] = ["==": [["var": "selected"], 42]]
+            #expect(try evaluator.evaluate(expr10, data: data) == true)
+
+            // Array with boolean
+            let expr11: [String: Any] = ["==": [[true], 1]]
+            #expect(try evaluator.evaluate(expr11, data: [:]) == true)
+
+            let expr12: [String: Any] = ["==": [[false], "false"]]
+            #expect(try evaluator.evaluate(expr12, data: [:]) == true)
+        }
+
         @Test("Loose equality (==) with version strings")
         func testLooseEqualityWithVersions() throws {
             let expr: [String: Any] = ["==": ["5.2.0", "5.2.0"]]
@@ -487,6 +649,46 @@ struct JSONLogicEvaluatorTests {
                     "Hello World"
                 ]
             ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("Boolean with numeric string in AND condition")
+        func testBooleanWithNumericStringInAnd() throws {
+            // Real-world scenario: Event data with boolean flags and numeric thresholds
+            let data: [String: Any] = [
+                "severity": "critical",
+                "is_blocking": true,      // Boolean from Swift
+                "score": 9.5              // Number
+            ]
+
+            // Rule from JSON with string "1" for boolean check
+            let expr: [String: Any] = [
+                "and": [
+                    ["==": [["var": "severity"], "critical"]],
+                    ["==": [["var": "is_blocking"], "1"]],  // Bool true should equal "1"
+                    [">": [["var": "score"], "9.1"]]        // Number should compare with string
+                ]
+            ]
+
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+
+        @Test("Mixed type comparisons in complex rule")
+        func testMixedTypeComparisons() throws {
+            let data: [String: Any] = [
+                "is_organic": true,
+                "count": 5,
+                "version": "2.1.0"
+            ]
+
+            let expr: [String: Any] = [
+                "and": [
+                    ["==": [["var": "is_organic"], "1"]],     // Bool == numeric string
+                    [">": [["var": "count"], "3"]],           // Number > numeric string
+                    [">=": [["var": "version"], "2.0.0"]]     // Version string comparison
+                ]
+            ]
+
             #expect(try evaluator.evaluate(expr, data: data) == true)
         }
     }
@@ -1093,6 +1295,195 @@ struct JSONLogicEvaluatorTests {
                 ]
             ]
             #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+    }
+
+    // MARK: - Production Type Safety Tests
+
+    @Suite("Production Type Safety & Crash Prevention")
+    struct ProductionTypeSafetyTests {
+        let evaluator = JSONLogicEvaluator()
+
+        @Test("NSNumber(1) vs string literal comparisons")
+        func testNSNumberVsStringLiterals() throws {
+            // Simulate JSONSerialization data
+            let json = #"{"count": 1, "zero": 0}"#
+            let data = try JSONSerialization.jsonObject(
+                with: json.data(using: .utf8)!
+            ) as! [String: Any]
+
+            // count=1 (NSNumber) should NOT equal "true"
+            let e1: [String: Any] = ["==": [["var": "count"], "true"]]
+            #expect(try evaluator.evaluate(e1, data: data) == false)
+
+            // count=1 (NSNumber) SHOULD equal "1"
+            let e2: [String: Any] = ["==": [["var": "count"], "1"]]
+            #expect(try evaluator.evaluate(e2, data: data) == true)
+
+            // zero=0 should NOT equal "false"
+            let e3: [String: Any] = ["==": [["var": "zero"], "false"]]
+            #expect(try evaluator.evaluate(e3, data: data) == false)
+
+            // zero=0 SHOULD equal "0"
+            let e4: [String: Any] = ["==": [["var": "zero"], "0"]]
+            #expect(try evaluator.evaluate(e4, data: data) == true)
+        }
+
+        @Test("JSONSerialization boolean vs string comparisons")
+        func testNSBooleanVsStrings() throws {
+            let json = #"{"flag": true, "disabled": false}"#
+            let data = try JSONSerialization.jsonObject(
+                with: json.data(using: .utf8)!
+            ) as! [String: Any]
+
+            // flag=true SHOULD equal "true" (literal)
+            let e1: [String: Any] = ["==": [["var": "flag"], "true"]]
+            #expect(try evaluator.evaluate(e1, data: data) == true)
+
+            // flag=true SHOULD equal "1" (numeric)
+            let e2: [String: Any] = ["==": [["var": "flag"], "1"]]
+            #expect(try evaluator.evaluate(e2, data: data) == true)
+
+            // disabled=false SHOULD equal "false"
+            let e3: [String: Any] = ["==": [["var": "disabled"], "false"]]
+            #expect(try evaluator.evaluate(e3, data: data) == true)
+
+            // disabled=false SHOULD equal "0"
+            let e4: [String: Any] = ["==": [["var": "disabled"], "0"]]
+            #expect(try evaluator.evaluate(e4, data: data) == true)
+        }
+
+        @Test("Null recursive coercion")
+        func testNullRecursiveCoercion() throws {
+            let data: [String: Any] = ["name": "John"]
+
+            // missing property = null, should equal "0" (null→0→"0")
+            let e1: [String: Any] = ["==": [["var": "age"], "0"]]
+            #expect(try evaluator.evaluate(e1, data: data) == true)
+
+            // null should equal 0 (null→0)
+            let e2: [String: Any] = ["==": [["var": "age"], 0]]
+            #expect(try evaluator.evaluate(e2, data: data) == true)
+
+            // null should NOT equal "true" or "false" (non-numeric strings)
+            let e3: [String: Any] = ["==": [["var": "age"], "true"]]
+            #expect(try evaluator.evaluate(e3, data: data) == false)
+
+            let e4: [String: Any] = ["==": [["var": "age"], "false"]]
+            #expect(try evaluator.evaluate(e4, data: data) == false)
+
+            // null should NOT equal non-zero strings
+            let e5: [String: Any] = ["==": [["var": "age"], "1"]]
+            #expect(try evaluator.evaluate(e5, data: data) == false)
+        }
+
+        @Test("Array unwrapping in comparisons - no crash")
+        func testArrayUnwrappingNoThrow() throws {
+            let data: [String: Any] = ["items": [5, 10, 15]]
+
+            // Array comparison shouldn't throw
+            let e1: [String: Any] = [">": [["var": "items"], "3"]]
+            #expect(try evaluator.evaluate(e1, data: data) == true)  // [5,10,15] → 5 > 3
+
+            let e2: [String: Any] = ["<": [["var": "items"], "10"]]
+            #expect(try evaluator.evaluate(e2, data: data) == true)  // [5,10,15] → 5 < 10
+
+            // Single-element array
+            let data2: [String: Any] = ["value": [42]]
+            let e3: [String: Any] = ["==": [["var": "value"], "42"]]
+            #expect(try evaluator.evaluate(e3, data: data2) == true)  // [42] → 42 == "42"
+
+            // Empty array does not unwrap (stays as array, not equal to scalar)
+            let data3: [String: Any] = ["value": []]
+            let e4: [String: Any] = ["==": [["var": "value"], "0"]]
+            #expect(try evaluator.evaluate(e4, data: data3) == false)  // [] does not unwrap
+        }
+
+        @Test("All operators with string RHS values")
+        func testAllOperatorsStringRHS() throws {
+            let json = #"{"count": 5, "name": "test", "flag": true, "items": ["a", "b"]}"#
+            let data = try JSONSerialization.jsonObject(
+                with: json.data(using: .utf8)!
+            ) as! [String: Any]
+
+            // Equality
+            #expect(try evaluator.evaluate(["==": [["var": "count"], "5"]], data: data) == true)
+
+            // Greater than
+            #expect(try evaluator.evaluate([">": [["var": "count"], "3"]], data: data) == true)
+
+            // Greater or equal
+            #expect(try evaluator.evaluate([">=": [["var": "count"], "5"]], data: data) == true)
+
+            // Less than
+            #expect(try evaluator.evaluate(["<": [["var": "count"], "10"]], data: data) == true)
+
+            // Less or equal
+            #expect(try evaluator.evaluate(["<=": [["var": "count"], "5"]], data: data) == true)
+
+            // String contains
+            #expect(try evaluator.evaluate(["in": ["te", ["var": "name"]]], data: data) == true)
+
+            // Array contains
+            #expect(try evaluator.evaluate(["in": ["b", ["var": "items"]]], data: data) == true)
+        }
+
+        @Test("Division and modulo by zero - graceful degradation")
+        func testDivisionByZero() throws {
+            // Division by zero returns infinity
+            let e1: [String: Any] = ["/": [10, 0]]
+            let result1 = try evaluator.evaluateRaw(e1, data: [:]) as! Double
+            #expect(result1.isInfinite)
+
+            // Modulo by zero returns 0 (matches Android behavior)
+            let e2: [String: Any] = ["%": [10, 0]]
+            let result2 = try evaluator.evaluateRaw(e2, data: [:]) as! Double
+            #expect(result2 == 0.0)
+
+            // These shouldn't crash subsequent comparisons
+            let e3: [String: Any] = [">": [["/": [10, 0]], "100"]]
+            #expect(try evaluator.evaluate(e3, data: [:]) == true)  // inf > 100
+        }
+
+        @Test("Regression: Native Swift Bool still works")
+        func testNativeSwiftBool() throws {
+            // Native Swift Bool (not from JSONSerialization)
+            let data: [String: Any] = ["flag": true]  // Swift.Bool
+
+            let e1: [String: Any] = ["==": [["var": "flag"], "true"]]
+            #expect(try evaluator.evaluate(e1, data: data) == true)
+
+            let e2: [String: Any] = ["==": [["var": "flag"], "1"]]
+            #expect(try evaluator.evaluate(e2, data: data) == true)
+        }
+
+        @Test("Regression: Version comparison still works")
+        func testVersionComparison() throws {
+            let data: [String: Any] = ["version": "5.10.0"]
+
+            let e1: [String: Any] = [">": [["var": "version"], "5.2.0"]]
+            #expect(try evaluator.evaluate(e1, data: data) == true)
+        }
+
+        @Test("Non-bridgeable types don't crash")
+        func testNonBridgeableTypesSafety() throws {
+            // Custom Swift struct (not bridgeable to CFTypeRef)
+            struct CustomValue {
+                let id: Int
+            }
+
+            let customData: [String: Any] = [
+                "custom": CustomValue(id: 42),
+                "name": "test"
+            ]
+
+            // Should not crash when comparing custom type
+            let e1: [String: Any] = ["==": [["var": "custom"], "test"]]
+            #expect(try evaluator.evaluate(e1, data: customData) == false)
+
+            // Should handle comparisons with other values safely
+            let e2: [String: Any] = ["==": [["var": "name"], "test"]]
+            #expect(try evaluator.evaluate(e2, data: customData) == true)
         }
     }
 }
