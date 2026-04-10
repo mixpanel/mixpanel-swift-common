@@ -1001,13 +1001,11 @@ public final class JSONLogicEvaluator {
     }
 
     private func isEqual(_ lhs: Any, _ rhs: Any) -> Bool {
-        // NSNull handling
+        // NSNull to NSNull comparison
         if lhs is NSNull && rhs is NSNull {
             return true
         }
-        if lhs is NSNull || rhs is NSNull {
-            return false
-        }
+        // Note: Don't return false early if one is null - allow coercion to happen later
 
         // String comparison (with version normalization)
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
@@ -1059,6 +1057,73 @@ public final class JSONLogicEvaluator {
         // Bool comparison
         if let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool {
             return lhsBool == rhsBool
+        }
+
+        // Bool-to-Number coercion (for JSON compatibility)
+        // IMPORTANT: Check numeric coercion BEFORE string coercion
+        if let lhsBool = lhs as? Bool {
+            let lhsAsNum = lhsBool ? 1.0 : 0.0
+            if let rhsNum = rhs as? Double {
+                return lhsAsNum == rhsNum
+            }
+            if let rhsNum = rhs as? Int {
+                return lhsAsNum == Double(rhsNum)
+            }
+            // Bool to numeric string: true == "1", false == "0"
+            if let rhsStr = rhs as? String, let rhsNum = Double(rhsStr) {
+                return lhsAsNum == rhsNum
+            }
+            // Bool to literal string: true == "true", false == "false"
+            // (Only if not numeric)
+            if let rhsStr = rhs as? String {
+                let lhsAsStr = lhsBool ? "true" : "false"
+                return lhsAsStr == rhsStr
+            }
+        }
+        if let rhsBool = rhs as? Bool {
+            let rhsAsNum = rhsBool ? 1.0 : 0.0
+            if let lhsNum = lhs as? Double {
+                return lhsNum == rhsAsNum
+            }
+            if let lhsNum = lhs as? Int {
+                return Double(lhsNum) == rhsAsNum
+            }
+            // Numeric string to Bool: "1" == true, "0" == false
+            if let lhsStr = lhs as? String, let lhsNum = Double(lhsStr) {
+                return lhsNum == rhsAsNum
+            }
+            // Literal string to Bool: "true" == true, "false" == false
+            // (Only if not numeric)
+            if let lhsStr = lhs as? String {
+                let rhsAsStr = rhsBool ? "true" : "false"
+                return lhsStr == rhsAsStr
+            }
+        }
+
+        // Null-to-number coercion (JSONLogic standard: null == 0)
+        if lhs is NSNull {
+            if let rhsNum = rhs as? Double {
+                return rhsNum == 0.0
+            }
+            if let rhsNum = rhs as? Int {
+                return rhsNum == 0
+            }
+        }
+        if rhs is NSNull {
+            if let lhsNum = lhs as? Double {
+                return lhsNum == 0.0
+            }
+            if let lhsNum = lhs as? Int {
+                return lhsNum == 0
+            }
+        }
+
+        // Single-element array unwrapping (JSONLogic standard: [x] == x)
+        if let lhsArray = lhs as? [Any], lhsArray.count == 1 {
+            return isEqual(lhsArray[0], rhs)
+        }
+        if let rhsArray = rhs as? [Any], rhsArray.count == 1 {
+            return isEqual(lhs, rhsArray[0])
         }
 
         return false
