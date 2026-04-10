@@ -1279,8 +1279,14 @@ public final class JSONLogicEvaluator {
 
     /// Checks if a value is a true Boolean (not NSNumber that can cast to Bool)
     /// This prevents NSNumber(0) and NSNumber(1) from being treated as booleans
+    /// Guards against non-bridgeable types to prevent crashes
     private func isTrueBoolValue(_ value: Any) -> Bool {
-        return CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
+        // First check if it's an NSNumber (bridgeable to CFTypeRef)
+        // This prevents crashes from custom Swift structs or non-bridgeable types
+        guard let number = value as? NSNumber else {
+            return false
+        }
+        return CFGetTypeID(number as CFTypeRef) == CFBooleanGetTypeID()
     }
 
     private func resolveArray(_ args: Any, data: [String: Any]) throws -> [Any] {

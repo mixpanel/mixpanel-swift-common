@@ -1464,5 +1464,26 @@ struct JSONLogicEvaluatorTests {
             let e1: [String: Any] = [">": [["var": "version"], "5.2.0"]]
             #expect(try evaluator.evaluate(e1, data: data) == true)
         }
+
+        @Test("Non-bridgeable types don't crash")
+        func testNonBridgeableTypesSafety() throws {
+            // Custom Swift struct (not bridgeable to CFTypeRef)
+            struct CustomValue {
+                let id: Int
+            }
+
+            let customData: [String: Any] = [
+                "custom": CustomValue(id: 42),
+                "name": "test"
+            ]
+
+            // Should not crash when comparing custom type
+            let e1: [String: Any] = ["==": [["var": "custom"], "test"]]
+            #expect(try evaluator.evaluate(e1, data: customData) == false)
+
+            // Should handle comparisons with other values safely
+            let e2: [String: Any] = ["==": [["var": "name"], "test"]]
+            #expect(try evaluator.evaluate(e2, data: customData) == true)
+        }
     }
 }
