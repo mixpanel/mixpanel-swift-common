@@ -1329,7 +1329,7 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(e4, data: data) == true)
         }
 
-        @Test("NSBoolean(true) vs string comparisons")
+        @Test("JSONSerialization boolean vs string comparisons")
         func testNSBooleanVsStrings() throws {
             let json = #"{"flag": true, "disabled": false}"#
             let data = try JSONSerialization.jsonObject(
