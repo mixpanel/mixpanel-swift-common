@@ -368,6 +368,10 @@ public final class JSONLogicEvaluator {
         }
         let a = try toNumber(values[0])
         let b = try toNumber(values[1])
+        // Return 0 for modulo by zero (matches Android behavior)
+        if b == 0 {
+            return 0
+        }
         return a.truncatingRemainder(dividingBy: b)
     }
 

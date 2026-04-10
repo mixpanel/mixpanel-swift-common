@@ -1435,10 +1435,10 @@ struct JSONLogicEvaluatorTests {
             let result1 = try evaluator.evaluateRaw(e1, data: [:]) as! Double
             #expect(result1.isInfinite)
 
-            // Modulo by zero returns nan
+            // Modulo by zero returns 0 (matches Android behavior)
             let e2: [String: Any] = ["%": [10, 0]]
             let result2 = try evaluator.evaluateRaw(e2, data: [:]) as! Double
-            #expect(result2.isNaN)
+            #expect(result2 == 0.0)
 
             // These shouldn't crash subsequent comparisons
             let e3: [String: Any] = [">": [["/": [10, 0]], "100"]]
