@@ -177,6 +177,63 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(expr2, data: [:]) == false)
         }
 
+        @Test("=== Array vs Array (same contents - deep equality)")
+        func testStrictEqualsArrayVsArraySameContents() throws {
+            let expr1: [String: Any] = ["===": [[1, 2, 3], [1, 2, 3]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [["a", "b"], ["a", "b"]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["===": [[true, false], [true, false]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+        }
+
+        @Test("=== Array vs Array (different contents)")
+        func testStrictEqualsArrayVsArrayDifferentContents() throws {
+            let expr1: [String: Any] = ["===": [[1, 2, 3], [1, 2, 4]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [[1, 2], [1, 2, 3]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            let expr3: [String: Any] = ["===": [["a"], ["b"]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("=== Array vs Array (nested arrays)")
+        func testStrictEqualsArrayVsArrayNested() throws {
+            let expr1: [String: Any] = ["===": [[[1, 2], [3, 4]], [[1, 2], [3, 4]]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [[[1, 2], [3, 4]], [[1, 2], [3, 5]]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Array vs Array (mixed types)")
+        func testStrictEqualsArrayVsArrayMixedTypes() throws {
+            // Array with different types should match only if all elements match strictly
+            let expr1: [String: Any] = ["===": [[1, "hello", true], [1, "hello", true]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            // Different types in same position should not match
+            let expr2: [String: Any] = ["===": [[1, "hello"], [1, true]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            // Bool vs Number in array
+            let expr3: [String: Any] = ["===": [[true, 1], [1, 1]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("=== Array vs non-Array (should be false)")
+        func testStrictEqualsArrayVsNonArray() throws {
+            let expr1: [String: Any] = ["===": [[1, 2], "1,2"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [[], 0]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
         // MARK: - Loose Equality (==) Tests
 
         @Test("== Boolean vs Boolean")
