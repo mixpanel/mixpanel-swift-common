@@ -627,6 +627,60 @@ struct JSONLogicEvaluatorTests {
             let expr: [String: Any] = ["==": [["max": [5, 2, 8, 1]], 8]]
             #expect(try evaluator.evaluate(expr, data: [:]) == true)
         }
+
+        @Test("Division by zero returns infinity")
+        func testDivisionByZero() throws {
+            // Positive number / 0 = Infinity
+            let expr1: [String: Any] = ["/": [10, 0]]
+            let result1 = try evaluator.evaluateRaw(expr1, data: [:]) as! Double
+            #expect(result1.isInfinite)
+            #expect(result1 > 0) // Positive infinity
+
+            // Negative number / 0 = -Infinity
+            let expr2: [String: Any] = ["/": [-10, 0]]
+            let result2 = try evaluator.evaluateRaw(expr2, data: [:]) as! Double
+            #expect(result2.isInfinite)
+            #expect(result2 < 0) // Negative infinity
+
+            // 0 / 0 = NaN
+            let expr3: [String: Any] = ["/": [0, 0]]
+            let result3 = try evaluator.evaluateRaw(expr3, data: [:]) as! Double
+            #expect(result3.isNaN)
+        }
+
+        @Test("Modulo by zero returns 0")
+        func testModuloByZero() throws {
+            // Any number % 0 = 0
+            let expr1: [String: Any] = ["%": [10, 0]]
+            let result1 = try evaluator.evaluateRaw(expr1, data: [:]) as! Double
+            #expect(result1 == 0.0)
+
+            let expr2: [String: Any] = ["%": [5, 0]]
+            let result2 = try evaluator.evaluateRaw(expr2, data: [:]) as! Double
+            #expect(result2 == 0.0)
+
+            let expr3: [String: Any] = ["%": [-7, 0]]
+            let result3 = try evaluator.evaluateRaw(expr3, data: [:]) as! Double
+            #expect(result3 == 0.0)
+
+            let expr4: [String: Any] = ["%": [0, 0]]
+            let result4 = try evaluator.evaluateRaw(expr4, data: [:]) as! Double
+            #expect(result4 == 0.0)
+        }
+
+        @Test("Division with floating point")
+        func testDivisionFloatingPoint() throws {
+            let expr: [String: Any] = ["==": [["/": [10.0, 4.0]], 2.5]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == true)
+        }
+
+        @Test("Modulo with floating point")
+        func testModuloFloatingPoint() throws {
+            let expr: [String: Any] = ["%": [10.5, 3.0]]
+            let result = try evaluator.evaluateRaw(expr, data: [:]) as! Double
+            // 10.5 % 3.0 = 1.5
+            #expect(abs(result - 1.5) < 0.0001)
+        }
     }
 
     // MARK: - String/Array Operators
