@@ -86,6 +86,386 @@ struct JSONLogicEvaluatorTests {
         }
     }
 
+    @Suite("Bool/Number/String Type Distinction")
+    struct TypeDistinctionTests {
+        let evaluator = JSONLogicEvaluator()
+
+        // MARK: - Strict Equality (===) Tests
+
+        @Test("=== Boolean vs Boolean (same value)")
+        func testStrictEqualsBoolVsBoolSame() throws {
+            let expr1: [String: Any] = ["===": [true, true]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [false, false]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+        }
+
+        @Test("=== Boolean vs Boolean (different value)")
+        func testStrictEqualsBoolVsBoolDifferent() throws {
+            let expr: [String: Any] = ["===": [true, false]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == false)
+        }
+
+        @Test("=== Boolean vs Number (should be false)")
+        func testStrictEqualsBoolVsNumber() throws {
+            let expr1: [String: Any] = ["===": [true, 1]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [false, 0]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            let expr3: [String: Any] = ["===": [true, 1.0]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+
+            let expr4: [String: Any] = ["===": [1, true]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == false)
+        }
+
+        @Test("=== Number vs Number (Int)")
+        func testStrictEqualsIntVsInt() throws {
+            let expr1: [String: Any] = ["===": [5, 5]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [5, 3]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Number vs Number (Double)")
+        func testStrictEqualsDoubleVsDouble() throws {
+            let expr1: [String: Any] = ["===": [5.5, 5.5]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [5.5, 3.2]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Number vs Number (Int vs Double - same value)")
+        func testStrictEqualsIntVsDouble() throws {
+            // In Mixpanel's implementation, Int and Double are both "numbers"
+            let expr: [String: Any] = ["===": [5, 5.0]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == true)
+        }
+
+        @Test("=== Number vs String (should be false)")
+        func testStrictEqualsNumberVsString() throws {
+            let expr1: [String: Any] = ["===": [5, "5"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": ["5", 5]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            let expr3: [String: Any] = ["===": [5.5, "5.5"]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("=== String vs String")
+        func testStrictEqualsStringVsString() throws {
+            let expr1: [String: Any] = ["===": ["hello", "hello"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": ["hello", "world"]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Boolean vs String (should be false)")
+        func testStrictEqualsBoolVsString() throws {
+            let expr1: [String: Any] = ["===": [true, "true"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [false, "false"]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Array vs Array (same contents - deep equality)")
+        func testStrictEqualsArrayVsArraySameContents() throws {
+            let expr1: [String: Any] = ["===": [[1, 2, 3], [1, 2, 3]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [["a", "b"], ["a", "b"]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["===": [[true, false], [true, false]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+        }
+
+        @Test("=== Array vs Array (different contents)")
+        func testStrictEqualsArrayVsArrayDifferentContents() throws {
+            let expr1: [String: Any] = ["===": [[1, 2, 3], [1, 2, 4]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [[1, 2], [1, 2, 3]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            let expr3: [String: Any] = ["===": [["a"], ["b"]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("=== Array vs Array (nested arrays)")
+        func testStrictEqualsArrayVsArrayNested() throws {
+            let expr1: [String: Any] = ["===": [[[1, 2], [3, 4]], [[1, 2], [3, 4]]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["===": [[[1, 2], [3, 4]], [[1, 2], [3, 5]]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("=== Array vs Array (mixed types)")
+        func testStrictEqualsArrayVsArrayMixedTypes() throws {
+            // Array with different types should match only if all elements match strictly
+            let expr1: [String: Any] = ["===": [[1, "hello", true], [1, "hello", true]]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            // Different types in same position should not match
+            let expr2: [String: Any] = ["===": [[1, "hello"], [1, true]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+
+            // Bool vs Number in array
+            let expr3: [String: Any] = ["===": [[true, 1], [1, 1]]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("=== Array vs non-Array (should be false)")
+        func testStrictEqualsArrayVsNonArray() throws {
+            let expr1: [String: Any] = ["===": [[1, 2], "1,2"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == false)
+
+            let expr2: [String: Any] = ["===": [[], 0]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        // MARK: - Loose Equality (==) Tests
+
+        @Test("== Boolean vs Boolean")
+        func testLooseEqualsBoolVsBool() throws {
+            let expr1: [String: Any] = ["==": [true, true]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [false, false]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [true, false]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        @Test("== Boolean vs Number (with coercion)")
+        func testLooseEqualsBoolVsNumber() throws {
+            // true coerces to 1
+            let expr1: [String: Any] = ["==": [true, 1]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [1, true]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            // false coerces to 0
+            let expr3: [String: Any] = ["==": [false, 0]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+
+            let expr4: [String: Any] = ["==": [0, false]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == true)
+
+            // true != 0, false != 1
+            let expr5: [String: Any] = ["==": [true, 0]]
+            #expect(try evaluator.evaluate(expr5, data: [:]) == false)
+
+            let expr6: [String: Any] = ["==": [false, 1]]
+            #expect(try evaluator.evaluate(expr6, data: [:]) == false)
+        }
+
+        @Test("== Number vs Number")
+        func testLooseEqualsNumberVsNumber() throws {
+            let expr1: [String: Any] = ["==": [5, 5]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [5.5, 5.5]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [5, 5.0]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+        }
+
+        @Test("== Number vs String (with coercion)")
+        func testLooseEqualsNumberVsString() throws {
+            let expr1: [String: Any] = ["==": [5, "5"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": ["5", 5]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [5.5, "5.5"]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == true)
+
+            let expr4: [String: Any] = ["==": [5, "3"]]
+            #expect(try evaluator.evaluate(expr4, data: [:]) == false)
+        }
+
+        @Test("== String vs String")
+        func testLooseEqualsStringVsString() throws {
+            let expr1: [String: Any] = ["==": ["hello", "hello"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": ["hello", "world"]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("== Boolean vs String (with coercion)")
+        func testLooseEqualsBoolVsString() throws {
+            // Boolean coerced to number, then compared
+            let expr1: [String: Any] = ["==": [true, "1"]]
+            #expect(try evaluator.evaluate(expr1, data: [:]) == true)
+
+            let expr2: [String: Any] = ["==": [false, "0"]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            let expr3: [String: Any] = ["==": [true, "true"]]
+            #expect(try evaluator.evaluate(expr3, data: [:]) == false)
+        }
+
+        // MARK: - Filter Tests with ===
+
+        @Test("Filter with === for Booleans")
+        func testFilterStrictEqualsBooleans() throws {
+            let data: [String: Any] = ["values": [true, false, true, 1, 0, true]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["===": [["var": ""], true]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            #expect(result.count == 3)
+            for value in result {
+                #expect(value as! Bool == true)
+            }
+        }
+
+        @Test("Filter with === for Numbers")
+        func testFilterStrictEqualsNumbers() throws {
+            let data: [String: Any] = ["values": [1, 2, 3, "3", 3, 4]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["===": [["var": ""], 3]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            #expect(result.count == 2)
+            for value in result {
+                #expect(value as! Int == 3)
+            }
+        }
+
+        @Test("Filter with === for Strings")
+        func testFilterStrictEqualsStrings() throws {
+            let data: [String: Any] = ["values": ["hello", "world", "hello", 5, "test"]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["===": [["var": ""], "hello"]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            #expect(result.count == 2)
+            for value in result {
+                #expect(value as! String == "hello")
+            }
+        }
+
+        // MARK: - Filter Tests with ==
+
+        @Test("Filter with == for Booleans (coerces numbers)")
+        func testFilterLooseEqualsBooleans() throws {
+            let data: [String: Any] = ["values": [true, false, 1, 0, true, 2]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["==": [["var": ""], true]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            // Should match: true, 1, true (all coerce to 1)
+            #expect(result.count == 3)
+        }
+
+        @Test("Filter with == for Numbers (coerces strings)")
+        func testFilterLooseEqualsNumbers() throws {
+            let data: [String: Any] = ["values": [1, 2, "3", 3, "3", 4]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["==": [["var": ""], 3]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            // Should match: "3", 3, "3"
+            #expect(result.count == 3)
+        }
+
+        @Test("Filter with == for Strings")
+        func testFilterLooseEqualsStrings() throws {
+            let data: [String: Any] = ["values": ["5", 5, "hello", "5"]]
+            let expr: [String: Any] = [
+                "filter": [
+                    ["var": "values"],
+                    ["==": [["var": ""], "5"]]
+                ]
+            ]
+            let result = try evaluator.evaluateRaw(expr, data: data) as! [Any]
+            // Should match: "5", 5, "5" (string "5" coerces to number)
+            #expect(result.count == 3)
+        }
+
+        // MARK: - Variable Resolution Tests
+
+        @Test("=== with variables from JSONSerialization")
+        func testStrictEqualsWithJSONData() throws {
+            let jsonData = #"{"flag": true, "count": 1, "name": "test"}"#.data(using: .utf8)!
+            let data = try JSONSerialization.jsonObject(with: jsonData) as! [String: Any]
+
+            // Boolean === Boolean
+            let expr1: [String: Any] = ["===": [["var": "flag"], true]]
+            #expect(try evaluator.evaluate(expr1, data: data) == true)
+
+            // Boolean !== Number
+            let expr2: [String: Any] = ["===": [["var": "flag"], 1]]
+            #expect(try evaluator.evaluate(expr2, data: data) == false)
+
+            // Number === Number
+            let expr3: [String: Any] = ["===": [["var": "count"], 1]]
+            #expect(try evaluator.evaluate(expr3, data: data) == true)
+
+            // Number !== Boolean
+            let expr4: [String: Any] = ["===": [["var": "count"], true]]
+            #expect(try evaluator.evaluate(expr4, data: data) == false)
+
+            // String === String
+            let expr5: [String: Any] = ["===": [["var": "name"], "test"]]
+            #expect(try evaluator.evaluate(expr5, data: data) == true)
+
+            // Number !== String
+            let expr6: [String: Any] = ["===": [["var": "count"], "1"]]
+            #expect(try evaluator.evaluate(expr6, data: data) == false)
+        }
+
+        @Test("== with variables from JSONSerialization")
+        func testLooseEqualsWithJSONData() throws {
+            let jsonData = #"{"flag": true, "count": 1, "name": "test"}"#.data(using: .utf8)!
+            let data = try JSONSerialization.jsonObject(with: jsonData) as! [String: Any]
+
+            // Boolean == Number (coerced)
+            let expr1: [String: Any] = ["==": [["var": "flag"], 1]]
+            #expect(try evaluator.evaluate(expr1, data: data) == true)
+
+            // Number == String (coerced)
+            let expr2: [String: Any] = ["==": [["var": "count"], "1"]]
+            #expect(try evaluator.evaluate(expr2, data: data) == true)
+
+            // Boolean == String (via number coercion)
+            let expr3: [String: Any] = ["==": [["var": "flag"], "1"]]
+            #expect(try evaluator.evaluate(expr3, data: data) == true)
+        }
+    }
+
     @Suite("Comparison Operators")
     struct ComparisonTests {
         let evaluator = JSONLogicEvaluator()
@@ -304,6 +684,60 @@ struct JSONLogicEvaluatorTests {
             let expr: [String: Any] = ["==": [["max": [5, 2, 8, 1]], 8]]
             #expect(try evaluator.evaluate(expr, data: [:]) == true)
         }
+
+        @Test("Division by zero returns infinity")
+        func testDivisionByZero() throws {
+            // Positive number / 0 = Infinity
+            let expr1: [String: Any] = ["/": [10, 0]]
+            let result1 = try evaluator.evaluateRaw(expr1, data: [:]) as! Double
+            #expect(result1.isInfinite)
+            #expect(result1 > 0) // Positive infinity
+
+            // Negative number / 0 = -Infinity
+            let expr2: [String: Any] = ["/": [-10, 0]]
+            let result2 = try evaluator.evaluateRaw(expr2, data: [:]) as! Double
+            #expect(result2.isInfinite)
+            #expect(result2 < 0) // Negative infinity
+
+            // 0 / 0 = NaN
+            let expr3: [String: Any] = ["/": [0, 0]]
+            let result3 = try evaluator.evaluateRaw(expr3, data: [:]) as! Double
+            #expect(result3.isNaN)
+        }
+
+        @Test("Modulo by zero returns 0")
+        func testModuloByZero() throws {
+            // Any number % 0 = 0
+            let expr1: [String: Any] = ["%": [10, 0]]
+            let result1 = try evaluator.evaluateRaw(expr1, data: [:]) as! Double
+            #expect(result1 == 0.0)
+
+            let expr2: [String: Any] = ["%": [5, 0]]
+            let result2 = try evaluator.evaluateRaw(expr2, data: [:]) as! Double
+            #expect(result2 == 0.0)
+
+            let expr3: [String: Any] = ["%": [-7, 0]]
+            let result3 = try evaluator.evaluateRaw(expr3, data: [:]) as! Double
+            #expect(result3 == 0.0)
+
+            let expr4: [String: Any] = ["%": [0, 0]]
+            let result4 = try evaluator.evaluateRaw(expr4, data: [:]) as! Double
+            #expect(result4 == 0.0)
+        }
+
+        @Test("Division with floating point")
+        func testDivisionFloatingPoint() throws {
+            let expr: [String: Any] = ["==": [["/": [10.0, 4.0]], 2.5]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == true)
+        }
+
+        @Test("Modulo with floating point")
+        func testModuloFloatingPoint() throws {
+            let expr: [String: Any] = ["%": [10.5, 3.0]]
+            let result = try evaluator.evaluateRaw(expr, data: [:]) as! Double
+            // 10.5 % 3.0 = 1.5
+            #expect(abs(result - 1.5) < 0.0001)
+        }
     }
 
     // MARK: - String/Array Operators
@@ -349,6 +783,17 @@ struct JSONLogicEvaluatorTests {
 
             let expr2: [String: Any] = ["in": ["grape", ["apple", "banana", "cherry"]]]
             #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("In operator - substring in string variable")
+        func testInOperatorSubstringWithVariable() throws {
+            let data: [String: Any] = ["severity": "critical"]
+            let ruleJSON = #"{"in":["criti",{"var":"severity"}]}"#
+            let rule = try JSONSerialization.jsonObject(
+                with: ruleJSON.data(using: .utf8)!
+            ) as! [String: Any]
+
+            #expect(try evaluator.evaluate(rule, data: data) == true)
         }
     }
 

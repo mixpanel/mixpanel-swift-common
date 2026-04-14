@@ -368,6 +368,10 @@ public final class JSONLogicEvaluator {
         }
         let a = try toNumber(values[0])
         let b = try toNumber(values[1])
+        // Match Android behavior: modulo by zero returns 0
+        if b == 0.0 {
+            return 0.0
+        }
         return a.truncatingRemainder(dividingBy: b)
     }
 
@@ -1009,6 +1013,28 @@ public final class JSONLogicEvaluator {
             return false
         }
 
+        // Bool handling: if either side is a Bool, coerce to number and compare
+        // (JavaScript semantics: true == 1, false == 0)
+        // Must check before numeric types due to NSNumber bridging
+        let lhsIsBool = isBoolValue(lhs)
+        let rhsIsBool = isBoolValue(rhs)
+        if lhsIsBool || rhsIsBool {
+            let lhsNum: Double
+            if lhsIsBool, let lhsBool = lhs as? Bool {
+                lhsNum = lhsBool ? 1.0 : 0.0
+            } else {
+                lhsNum = (try? toNumber(lhs)) ?? Double.nan
+            }
+
+            let rhsNum: Double
+            if rhsIsBool, let rhsBool = rhs as? Bool {
+                rhsNum = rhsBool ? 1.0 : 0.0
+            } else {
+                rhsNum = (try? toNumber(rhs)) ?? Double.nan
+            }
+            return lhsNum == rhsNum
+        }
+
         // String comparison (with version normalization)
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
             // Normalize version comparison
@@ -1056,11 +1082,6 @@ public final class JSONLogicEvaluator {
             }
         }
 
-        // Bool comparison
-        if let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool {
-            return lhsBool == rhsBool
-        }
-
         return false
     }
 
@@ -1101,17 +1122,37 @@ public final class JSONLogicEvaluator {
         return .orderedSame
     }
 
+    // MARK: - Type Detection
+
+    /// Determines whether a value is a true Boolean (from JSON `true`/`false`)
+    /// versus a numeric NSNumber that happens to bridge to Bool.
+    ///
+    /// NSNumber bridges all numeric values to Bool via `as? Bool`,
+    /// making `1 as? Bool == true` and `true as? Int == 1`.
+    /// CoreFoundation's type ID is the only reliable way to distinguish them.
+    /// Only apply the CF type check to values that bridge to NSNumber;
+    /// non-Foundation Swift values are not guaranteed to be CFTypeRef-backed.
+    private func isBoolValue(_ value: Any) -> Bool {
+        guard let number = value as? NSNumber else {
+            return false
+        }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
+    }
+
     // MARK: - Type Coercion
 
     private func toNumber(_ value: Any) throws -> Double {
+        // Check Bool first using CF type ID, before numeric checks
+        // (NSNumber bridges Bool to Int/Double, so `as? Double` would match bools)
+        if isBoolValue(value), let boolVal = value as? Bool {
+            return boolVal ? 1.0 : 0.0
+        }
         if let num = value as? Double {
             return num
         } else if let num = value as? Int {
             return Double(num)
         } else if let str = value as? String, let num = Double(str) {
             return num
-        } else if let bool = value as? Bool {
-            return bool ? 1.0 : 0.0
         } else if value is NSNull {
             return 0.0
         } else {
@@ -1122,7 +1163,13 @@ public final class JSONLogicEvaluator {
     private func toString(_ value: Any) -> String {
         if let str = value as? String {
             return str
-        } else if let num = value as? Double {
+        }
+        // Check Bool before numeric types to avoid NSNumber bridging confusion
+        // (without this, `true` matches `as? Double` and returns "1" instead of "true")
+        if isBoolValue(value), let boolVal = value as? Bool {
+            return boolVal ? "true" : "false"
+        }
+        if let num = value as? Double {
             // If it's a whole number, format without decimal
             if num.truncatingRemainder(dividingBy: 1) == 0 && !num.isNaN && !num.isInfinite {
                 return String(Int(num))
@@ -1130,8 +1177,6 @@ public final class JSONLogicEvaluator {
             return String(num)
         } else if let num = value as? Int {
             return String(num)
-        } else if let bool = value as? Bool {
-            return bool ? "true" : "false"
         } else if value is NSNull {
             return ""
         } else if let array = value as? [Any] {
@@ -1142,10 +1187,12 @@ public final class JSONLogicEvaluator {
     }
 
     private func truthy(_ value: Any) -> Bool {
-        if let bool = value as? Bool {
-            return bool
-        } else if let num = value as? Double {
-            return num != 0.0
+        // Check Bool first using CF type ID to avoid NSNumber bridging confusion
+        if isBoolValue(value), let boolVal = value as? Bool {
+            return boolVal
+        }
+        if let num = value as? Double {
+            return !num.isNaN && num != 0.0
         } else if let num = value as? Int {
             return num != 0
         } else if let str = value as? String {
@@ -1167,6 +1214,36 @@ public final class JSONLogicEvaluator {
             return true
         }
 
+        // Array comparison: deep equality (element-by-element)
+        // Swift arrays are value types, so we compare contents recursively
+        if let lhsArray = lhs as? [Any], let rhsArray = rhs as? [Any] {
+            guard lhsArray.count == rhsArray.count else { return false }
+            for (lhsElem, rhsElem) in zip(lhsArray, rhsArray) {
+                if !isStrictEqual(lhsElem, rhsElem) {
+                    return false
+                }
+            }
+            return true
+        }
+
+        // Use CF type ID to distinguish Bool from numeric NSNumber
+        // (NSNumber bridges Bool to Int/Double, making `as?` checks unreliable)
+        let lhsIsBool = isBoolValue(lhs)
+        let rhsIsBool = isBoolValue(rhs)
+
+        // Bool vs non-Bool: always different types in strict equality
+        if lhsIsBool != rhsIsBool {
+            return false
+        }
+
+        // Both are booleans
+        if lhsIsBool && rhsIsBool {
+            guard let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool else {
+                return false
+            }
+            return lhsBool == rhsBool
+        }
+
         // String comparison
         if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
             return lhsStr == rhsStr
@@ -1185,11 +1262,6 @@ public final class JSONLogicEvaluator {
         }
         if let lhsDouble = lhs as? Double, let rhsInt = rhs as? Int {
             return lhsDouble == Double(rhsInt)
-        }
-
-        // Boolean comparison
-        if let lhsBool = lhs as? Bool, let rhsBool = rhs as? Bool {
-            return lhsBool == rhsBool
         }
 
         // Different types (string vs number, etc.)
