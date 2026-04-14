@@ -1181,7 +1181,7 @@ public final class JSONLogicEvaluator {
             return (value as! Bool)
         }
         if let num = value as? Double {
-            return num != 0.0
+            return !num.isNaN && num != 0.0
         } else if let num = value as? Int {
             return num != 0
         } else if let str = value as? String {
