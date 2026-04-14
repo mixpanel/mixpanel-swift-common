@@ -1130,8 +1130,13 @@ public final class JSONLogicEvaluator {
     /// NSNumber bridges all numeric values to Bool via `as? Bool`,
     /// making `1 as? Bool == true` and `true as? Int == 1`.
     /// CoreFoundation's type ID is the only reliable way to distinguish them.
+    /// Only apply the CF type check to values that bridge to NSNumber;
+    /// non-Foundation Swift values are not guaranteed to be CFTypeRef-backed.
     private func isBoolValue(_ value: Any) -> Bool {
-        return CFGetTypeID(value as CFTypeRef) == CFBooleanGetTypeID()
+        guard let number = value as? NSNumber else {
+            return false
+        }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
     }
 
     // MARK: - Type Coercion
@@ -1187,7 +1192,7 @@ public final class JSONLogicEvaluator {
             return boolVal
         }
         if let num = value as? Double {
-            return num != 0.0
+            return !num.isNaN && num != 0.0
         } else if let num = value as? Int {
             return num != 0
         } else if let str = value as? String {
