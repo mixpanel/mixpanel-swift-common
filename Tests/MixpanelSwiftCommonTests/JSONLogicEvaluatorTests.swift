@@ -727,6 +727,17 @@ struct JSONLogicEvaluatorTests {
             let expr2: [String: Any] = ["in": ["grape", ["apple", "banana", "cherry"]]]
             #expect(try evaluator.evaluate(expr2, data: [:]) == false)
         }
+
+        @Test("In operator - substring in string variable")
+        func testInOperatorSubstringWithVariable() throws {
+            let data: [String: Any] = ["severity": "critical"]
+            let ruleJSON = #"{"in":["criti",{"var":"severity"}]}"#
+            let rule = try JSONSerialization.jsonObject(
+                with: ruleJSON.data(using: .utf8)!
+            ) as! [String: Any]
+
+            #expect(try evaluator.evaluate(rule, data: data) == true)
+        }
     }
 
     @Suite("Array Operations")
