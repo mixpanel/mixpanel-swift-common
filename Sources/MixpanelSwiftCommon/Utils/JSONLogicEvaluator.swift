@@ -5,7 +5,7 @@
 //  Created by Mixpanel on 2026-03-03.
 //  Copyright © 2026 Mixpanel. All rights reserved.
 //
-//  Full JSONLogic implementation
+//  JSONLogic essential subset evaluator
 //  Based on: http://jsonlogic.com/
 
 import Foundation

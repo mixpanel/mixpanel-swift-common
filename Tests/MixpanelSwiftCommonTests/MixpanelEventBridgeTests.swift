@@ -89,27 +89,28 @@ struct MixpanelEventBridgeTests {
 
         // Clean up: cancel task and reset bridge to clear all continuations
         awaitedEvent.cancel()
-        bridge.reset()
+//        bridge.reset()
     }
 
     @Test("Stream consumer can receive one event and finish")
     @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
     func testNotifyListenersWithConsumingTask() async {
         let bridge = MixpanelEventBridge.shared
-        let stream = bridge.eventStream()
-        var iterator = stream.makeAsyncIterator()
+        var stream: AsyncStream<MixpanelEvent>? = bridge.eventStream()
+        var iterator = stream?.makeAsyncIterator()
 
         bridge.notifyListeners(
             eventName: "termination_test_event",
             properties: ["key": "value"]
         )
 
-        let event = await iterator.next()
+        var event = await iterator?.next()
 
         #expect(event?.eventName == "termination_test_event")
         #expect(event?.properties["key"] as? String == "value")
 
-        // Clean up: reset bridge to clear all continuations
-        bridge.reset()
+        // Clean up: reset stream 
+        stream = nil
+        iterator = nil
     }
 }

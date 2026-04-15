@@ -242,11 +242,11 @@ struct JSONLogicEvaluatorTests {
             // Feature flag is missing, should use default "disabled"
             let expr: [String: Any] = [
                 "and": [
-                    ["===": [["var": ["$feature_flag", "enabled"]], "enabled"]],
+                    ["===": [["var": ["$feature_flag", "disabled"]], "enabled"]],
                     [">": [["var": "$user_id"], 0]]
                 ]
             ]
-            #expect(try evaluator.evaluate(expr, data: data) == true)
+            #expect(try evaluator.evaluate(expr, data: data) == false)
         }
 
         @Test("Complex targeting rule")
