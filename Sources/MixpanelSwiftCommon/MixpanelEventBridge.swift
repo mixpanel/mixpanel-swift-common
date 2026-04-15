@@ -101,4 +101,12 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
             continuation.yield(event)
         }
     }
+    
+    /// Removes all active stream continuations. For testing purposes only.
+    /// This forcibly clears all registered streams without properly finishing them.
+    internal func reset() {
+        continuationsLock.lock()
+        defer { continuationsLock.unlock() }
+        continuations.removeAll()
+    }
 }

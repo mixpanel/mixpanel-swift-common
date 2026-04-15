@@ -17,17 +17,19 @@ for await event in stream {
 ```
 
 ### JSONLogicEvaluator
-Full JSONLogic implementation with semantic version comparison support.
+Essential JSONLogic operators for targeting and filtering.
+
+Supports 10 operators: `===`, `!==`, `<`, `<=`, `>`, `>=`, `in`, `and`, `or`, `var`.
+
+See [OPERATORS.md](OPERATORS.md) for complete documentation and examples.
 
 ```swift
 let evaluator = JSONLogicEvaluator()
 let result = try evaluator.evaluate(
-    [">":[["var":"version"], "5.2.0"]],
-    data: ["version": "5.10.0"]
+    [">": [["var": "score"], 50]],
+    data: ["score": 75]
 ) // Returns true
 ```
-
-Supports semantic version strings (e.g., "5.10.0" > "5.2.0").
 
 ## Installation
 

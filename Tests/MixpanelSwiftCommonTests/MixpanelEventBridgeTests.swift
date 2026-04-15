@@ -9,7 +9,7 @@ import Testing
 import Foundation
 @testable import MixpanelSwiftCommon
 
-@Suite("MixpanelEventBridge Tests")
+@Suite("MixpanelEventBridge Tests", .serialized)
 struct MixpanelEventBridgeTests {
 
     init() {
@@ -86,6 +86,10 @@ struct MixpanelEventBridgeTests {
         #expect(event?.eventName == "test_event")
         #expect(event?.properties["key"] as? String == "value")
         #expect(event?.properties["number"] as? Int == 42)
+
+        // Clean up: cancel task and reset bridge to clear all continuations
+        awaitedEvent.cancel()
+        bridge.reset()
     }
 
     @Test("Stream consumer can receive one event and finish")
@@ -93,17 +97,19 @@ struct MixpanelEventBridgeTests {
     func testNotifyListenersWithConsumingTask() async {
         let bridge = MixpanelEventBridge.shared
         let stream = bridge.eventStream()
-
         var iterator = stream.makeAsyncIterator()
-        
+
         bridge.notifyListeners(
             eventName: "termination_test_event",
             properties: ["key": "value"]
         )
 
         let event = await iterator.next()
-        
+
         #expect(event?.eventName == "termination_test_event")
         #expect(event?.properties["key"] as? String == "value")
+
+        // Clean up: reset bridge to clear all continuations
+        bridge.reset()
     }
 }
