@@ -33,6 +33,25 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["!==": [5, 5]], data: [:]) == false)
             #expect(try evaluator.evaluate(["!==": [5, "5"]], data: [:]) == true)
         }
+
+        @Test("=== with floating point numbers")
+        func testStrictEqualsFloatingPoint() throws {
+            #expect(try evaluator.evaluate(["===": [3.14, 3.14]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["===": [3.14, 3.140]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["===": [3.14, 3.15]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["===": [3.14, "3.14"]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["===": [0.0, 0]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["===": [-1.5, -1.5]], data: [:]) == true)
+        }
+
+        @Test("!== with floating point numbers")
+        func testStrictInequalityFloatingPoint() throws {
+            #expect(try evaluator.evaluate(["!==": [3.14, 3.15]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["!==": [3.14, 3.14]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["!==": [3.14, "3.14"]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["!==": [0.0, 0]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["!==": [-2.5, -2.6]], data: [:]) == true)
+        }
     }
     
     // MARK: - Comparison Operators (>, >=, <, <=)
@@ -46,6 +65,7 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate([">": [10, 5]], data: [:]) == true)
             #expect(try evaluator.evaluate([">": [5, 10]], data: [:]) == false)
             #expect(try evaluator.evaluate([">": [5, 5]], data: [:]) == false)
+            
         }
         
         @Test("Greater or equal (>=)")
@@ -81,6 +101,43 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["<": ["a", "b"]], data: [:]) == true)
             #expect(try evaluator.evaluate([">=": ["b", "b"]], data: [:]) == true)
             #expect(try evaluator.evaluate(["<=": ["a", "a"]], data: [:]) == true)
+        }
+
+        @Test("Greater than (>) with floating point")
+        func testGreaterThanFloatingPoint() throws {
+            #expect(try evaluator.evaluate([">": [3.14, 2.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">": [2.5, 3.14]], data: [:]) == false)
+            #expect(try evaluator.evaluate([">": [3.14, 3.14]], data: [:]) == false)
+            #expect(try evaluator.evaluate([">": [0.1, 0.01]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">": [-1.5, -2.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">": [-2.5, -1.5]], data: [:]) == false)
+        }
+
+        @Test("Greater or equal (>=) with floating point")
+        func testGreaterOrEqualFloatingPoint() throws {
+            #expect(try evaluator.evaluate([">=": [3.14, 2.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">=": [3.14, 3.14]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">=": [2.5, 3.14]], data: [:]) == false)
+            #expect(try evaluator.evaluate([">=": [-1.5, -1.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">=": [0.0, 0]], data: [:]) == true)
+        }
+
+        @Test("Less than (<) with floating point")
+        func testLessThanFloatingPoint() throws {
+            #expect(try evaluator.evaluate(["<": [2.5, 3.14]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<": [3.14, 2.5]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["<": [3.14, 3.14]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["<": [-2.5, -1.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<": [0.01, 0.1]], data: [:]) == true)
+        }
+
+        @Test("Less or equal (<=) with floating point")
+        func testLessOrEqualFloatingPoint() throws {
+            #expect(try evaluator.evaluate(["<=": [2.5, 3.14]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<=": [3.14, 3.14]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<=": [3.14, 2.5]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["<=": [-1.5, -1.5]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<=": [0, 0.0]], data: [:]) == true)
         }
     }
     
