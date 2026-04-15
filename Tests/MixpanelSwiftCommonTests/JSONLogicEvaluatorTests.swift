@@ -68,6 +68,20 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["<=": [5, 5]], data: [:]) == true)
             #expect(try evaluator.evaluate(["<=": [10, 5]], data: [:]) == false)
         }
+        
+        @Test("Greater/less or equal rejects type coercion")
+        func testGreaterOrEqualStrict() throws {
+            #expect(try evaluator.evaluate([">=": [5, "5"]], data: [:]) == false)
+            #expect(try evaluator.evaluate(["<=": ["5", 5]], data: [:]) == false)
+        }
+
+        @Test("String comparison (lexicographic)")
+        func testStringComparison() throws {
+            #expect(try evaluator.evaluate([">": ["b", "a"]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<": ["a", "b"]], data: [:]) == true)
+            #expect(try evaluator.evaluate([">=": ["b", "b"]], data: [:]) == true)
+            #expect(try evaluator.evaluate(["<=": ["a", "a"]], data: [:]) == true)
+        }
     }
     
     // MARK: - Logical Operators (and, or)
@@ -89,7 +103,7 @@ struct JSONLogicEvaluatorTests {
         func testOr() throws {
             let expr1: [String: Any] = ["or": [false, true, false]]
             #expect(try evaluator.evaluate(expr1, data: [:]) == true)
-            
+
             let expr2: [String: Any] = ["or": [false, false, false]]
             #expect(try evaluator.evaluate(expr2, data: [:]) == false)
         }
@@ -116,9 +130,20 @@ struct JSONLogicEvaluatorTests {
             let data: [String: Any] = ["$address": "11 street, Louisville"]
             let expr: [String: Any] = ["in": ["Louisville", ["var": "$address"]]]
             #expect(try evaluator.evaluate(expr, data: data) == true)
-            
+
             let expr2: [String: Any] = ["in": ["New york", ["var": "$address"]]]
             #expect(try evaluator.evaluate(expr2, data: data) == false)
+        }
+
+        @Test("IN with type mismatch (strict matching)")
+        func testInTypeMismatch() throws {
+            // Number 5 should NOT match string "5" (strict equality)
+            let expr: [String: Any] = ["in": [5, ["5", "10"]]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == false)
+
+            // String "5" should NOT match number 5
+            let expr2: [String: Any] = ["in": ["5", [5, 10]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
         }
     }
     
@@ -155,7 +180,9 @@ struct JSONLogicEvaluatorTests {
     @Suite("Real-World Examples")
     struct RealWorldTests {
         let evaluator = JSONLogicEvaluator()
-        
+
+        // MARK: - Basic Combinations (3-4 operators)
+
         @Test("City targeting with AND")
         func testCityTargeting() throws {
             let data: [String: Any] = [
@@ -233,6 +260,34 @@ struct JSONLogicEvaluatorTests {
             ]
             #expect(try evaluator.evaluate(expr, data: data) == true)
         }
+        
+        @Test("Range eligibility")
+        func testRange() throws {
+            let data: [String: Any] = [
+                "$score": 17,
+            ]
+            let expr: [String: Any] = [
+                "or": [
+                    [">=": [["var": "$score"], 80]],
+                    ["<=": [["var": "$score"], 90]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == true)
+        }
+        
+        @Test("Missing values")
+        func testMissingValue() throws {
+            let data: [String: Any] = [
+                "$score": 17,
+            ]
+            let expr: [String: Any] = [
+                "or": [
+                    [">=": [["var": "$score"], 80]],
+                    ["===": [["var": "$player_type"], 90]]
+                ]
+            ]
+            #expect(try evaluator.evaluate(expr, data: data) == false)
+        }
 
         @Test("Feature flag with default value")
         func testFeatureFlagWithDefault() throws {
@@ -248,6 +303,8 @@ struct JSONLogicEvaluatorTests {
             ]
             #expect(try evaluator.evaluate(expr, data: data) == false)
         }
+
+        // MARK: - Advanced Combinations (5+ operators)
 
         @Test("Complex targeting rule")
         func testComplexTargeting() throws {

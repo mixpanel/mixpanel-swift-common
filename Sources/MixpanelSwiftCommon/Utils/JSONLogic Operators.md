@@ -22,30 +22,34 @@ This implementation supports 10 essential operators for targeting and filtering 
 
 ### Comparison Operators
 
-**`>` (greater than)** - Numbers only, 2 arguments
+**`>` (greater than)** - Numbers or strings (lexicographic), 2 arguments
 ```json
 {">": [2, 1]}            → true
 {">": [1, 2]}            → false
+{">": ["b", "a"]}        → true (lexicographic)
 ```
 
-**`>=` (greater or equal)** - Numbers only, 2 arguments
+**`>=` (greater or equal)** - Numbers or strings (lexicographic), 2 arguments
 ```json
 {">=": [2, 1]}           → true
 {">=": [1, 1]}           → true
 {">=": [1, 2]}           → false
+{">=": ["b", "b"]}       → true
 ```
 
-**`<` (less than)** - Numbers only, 2 arguments
+**`<` (less than)** - Numbers or strings (lexicographic), 2 arguments
 ```json
 {"<": [1, 2]}            → true
 {"<": [2, 1]}            → false
+{"<": ["a", "b"]}        → true (lexicographic)
 ```
 
-**`<=` (less or equal)** - Numbers only, 2 arguments
+**`<=` (less or equal)** - Numbers or strings (lexicographic), 2 arguments
 ```json
 {"<=": [1, 2]}           → true
 {"<=": [1, 1]}           → true
 {"<=": [2, 1]}           → false
+{"<=": ["a", "a"]}       → true
 ```
 
 ### Logical Operators
@@ -129,5 +133,8 @@ with `{"tier": "premium", "credits": 100}` → `true`
 ## Notes
 
 - **No type coercion** for equality: `===` and `!==` require exact type match
-- **Lexicographic strings**: String comparison is alphabetical, not semantic versioning
+- **Comparison operators** support both numbers and strings, but:
+  - Mixed types (number vs string) will attempt numeric conversion
+  - String comparison is **lexicographic** (alphabetical), not semantic versioning
+  - Warning: `"10" < "9"` is `true` lexicographically
 - **Strict array membership**: `in` uses `===` for array element matching

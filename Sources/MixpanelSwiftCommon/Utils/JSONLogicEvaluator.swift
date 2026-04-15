@@ -152,7 +152,7 @@ public final class JSONLogicEvaluator {
     }
 
     private func evaluateGreaterThan(_ args: Any, data: [String: Any]) throws -> Bool {
-        guard let array = args as? [Any], array.count >= 2 else {
+        guard let array = args as? [Any], array.count == 2 else {
             throw EvaluationError.invalidExpression
         }
 
@@ -350,7 +350,7 @@ public final class JSONLogicEvaluator {
         return value
     }
 
-    // MARK: - Comparison Logic with Type Coercion & Version Support
+    // MARK: - Comparison Logic with Type Coercion
 
     private func isGreaterThan(_ lhs: Any, _ rhs: Any) throws -> Bool {
         // String-to-string comparison (lexicographic)

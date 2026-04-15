@@ -87,9 +87,8 @@ struct MixpanelEventBridgeTests {
         #expect(event?.properties["key"] as? String == "value")
         #expect(event?.properties["number"] as? Int == 42)
 
-        // Clean up: cancel task and reset bridge to clear all continuations
+        // Clean up: cancel task
         awaitedEvent.cancel()
-//        bridge.reset()
     }
 
     @Test("Stream consumer can receive one event and finish")
@@ -109,7 +108,7 @@ struct MixpanelEventBridgeTests {
         #expect(event?.eventName == "termination_test_event")
         #expect(event?.properties["key"] as? String == "value")
 
-        // Clean up: reset stream 
+        // Clean up: reset stream
         stream = nil
         iterator = nil
     }
