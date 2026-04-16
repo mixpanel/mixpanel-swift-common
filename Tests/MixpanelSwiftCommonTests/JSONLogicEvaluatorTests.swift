@@ -89,18 +89,46 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["<=": [10, 5]], data: [:]) == false)
         }
         
-        @Test("Greater/less or equal rejects type coercion")
-        func testGreaterOrEqualStrict() throws {
-            #expect(try evaluator.evaluate([">=": [5, "5"]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["<=": ["5", 5]], data: [:]) == false)
+        @Test("Comparison operators reject strings")
+        func testComparisonRejectsStrings() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">": ["b", "a"]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<": ["a", "b"]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">=": ["b", "b"]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<=": ["a", "a"]], data: [:])
+            }
         }
 
-        @Test("String comparison (lexicographic)")
-        func testStringComparison() throws {
-            #expect(try evaluator.evaluate([">": ["b", "a"]], data: [:]) == true)
-            #expect(try evaluator.evaluate(["<": ["a", "b"]], data: [:]) == true)
-            #expect(try evaluator.evaluate([">=": ["b", "b"]], data: [:]) == true)
-            #expect(try evaluator.evaluate(["<=": ["a", "a"]], data: [:]) == true)
+        @Test("Comparison operators reject booleans")
+        func testComparisonRejectsBooleans() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">": [true, false]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<": [false, true]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">=": [true, true]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<=": [false, false]], data: [:])
+            }
+        }
+
+        @Test("Comparison operators reject mixed types")
+        func testComparisonRejectsMixedTypes() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">=": [5, "5"]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<=": ["5", 5]], data: [:])
+            }
         }
 
         @Test("Greater than (>) with floating point")
@@ -194,13 +222,28 @@ struct JSONLogicEvaluatorTests {
 
         @Test("IN with type mismatch (strict matching)")
         func testInTypeMismatch() throws {
-            // Number 5 should NOT match string "5" (strict equality)
-            let expr: [String: Any] = ["in": [5, ["5", "10"]]]
+            // String "5" should NOT match number 5
+            let expr: [String: Any] = ["in": ["5", [5, 10]]]
             #expect(try evaluator.evaluate(expr, data: [:]) == false)
 
-            // String "5" should NOT match number 5
-            let expr2: [String: Any] = ["in": ["5", [5, 10]]]
-            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+            // String "5" should match string "5"
+            let expr2: [String: Any] = ["in": ["5", ["5", "10"]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+        }
+
+        @Test("IN operator rejects non-string types")
+        func testInRejectsNonStrings() throws {
+            // Number should be rejected
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                let expr: [String: Any] = ["in": [5, [1, 2, 3, 5]]]
+                try evaluator.evaluate(expr, data: [:])
+            }
+
+            // Boolean should be rejected
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                let expr: [String: Any] = ["in": [true, [true, false]]]
+                try evaluator.evaluate(expr, data: [:])
+            }
         }
     }
     

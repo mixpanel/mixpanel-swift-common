@@ -13,11 +13,16 @@ import Foundation
 /// A JSONLogic expression evaluator with support for essential comparison and logical operators.
 ///
 /// ## Supported Operators (10 total)
-/// - **Strict Equality**: `===` (is), `!==` (is not)
-/// - **Comparison**: `>`, `>=`, `<`, `<=`
-/// - **Logical**: `and`, `or`
-/// - **String/Array**: `in` (array membership and substring check)
+/// - **Strict Equality**: `===` (is), `!==` (is not) - all types
+/// - **Comparison**: `>`, `>=`, `<`, `<=` - numbers only
+/// - **Logical**: `and`, `or` - all types
+/// - **String/Array**: `in` (array membership and substring check) - strings only
 /// - **Data**: `var` (variable resolution)
+///
+/// ## Type Restrictions
+/// - **String**: `===`, `!==`, `in`
+/// - **Boolean**: `===`, `!==`
+/// - **Number**: `===`, `!==`, `<`, `<=`, `>`, `>=`
 ///
 /// ## Examples
 /// ```swift
@@ -25,14 +30,16 @@ import Foundation
 /// {"===": [5, 5]}  // true
 /// {"===": [5, "5"]}  // false (different types)
 ///
-/// // Comparison (numbers)
+/// // Comparison (numbers only)
 /// {">": [10, 5]}  // true
 /// {"<=": [5, 10]}  // true
+/// {">": ["b", "a"]}  // ERROR: strings not supported
 ///
-/// // Array membership
+/// // Array membership (strings only)
 /// {"in": [{"var": "$city"}, ["Louisville", "Miami"]]}  // true if $city is in array
+/// {"in": [5, [1, 2, 3]]}  // ERROR: numbers not supported
 ///
-/// // Substring check
+/// // Substring check (strings only)
 /// {"in": ["Louisville", {"var": "$address"}]}  // true if "Louisville" is substring of $address
 ///
 /// // Logical operators
@@ -249,13 +256,18 @@ public final class JSONLogicEvaluator {
         let needle = try resolveValue(array[0], data: data)
         let haystack = try resolveValue(array[1], data: data)
 
-        // Check if haystack is an array
-        if let haystackArray = haystack as? [Any] {
-            return haystackArray.contains { isStrictEqual(needle, $0) }
+        // Only strings support the 'in' operator
+        guard let needleStr = needle as? String else {
+            throw EvaluationError.typeMismatch
         }
 
-        // Check if both are strings (substring check)
-        if let needleStr = needle as? String, let haystackStr = haystack as? String {
+        // Check if haystack is an array (array membership)
+        if let haystackArray = haystack as? [Any] {
+            return haystackArray.contains { isStrictEqual(needleStr, $0) }
+        }
+
+        // Check if haystack is a string (substring check)
+        if let haystackStr = haystack as? String {
             return haystackStr.contains(needleStr)
         }
 
@@ -353,24 +365,14 @@ public final class JSONLogicEvaluator {
     // MARK: - Comparison Logic with Type Coercion
 
     private func isGreaterThan(_ lhs: Any, _ rhs: Any) throws -> Bool {
-        // String-to-string comparison (lexicographic)
-        if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
-            return lhsStr > rhsStr
-        }
-
-        // Numeric comparisons with type coercion
+        // Only numbers support comparison operators
         let lhsNum = try toNumber(lhs)
         let rhsNum = try toNumber(rhs)
         return lhsNum > rhsNum
     }
 
     private func isLessThan(_ lhs: Any, _ rhs: Any) throws -> Bool {
-        // String-to-string comparison (lexicographic)
-        if let lhsStr = lhs as? String, let rhsStr = rhs as? String {
-            return lhsStr < rhsStr
-        }
-
-        // Numeric comparisons with type coercion
+        // Only numbers support comparison operators
         let lhsNum = try toNumber(lhs)
         let rhsNum = try toNumber(rhs)
         return lhsNum < rhsNum
@@ -396,17 +398,17 @@ public final class JSONLogicEvaluator {
     // MARK: - Type Coercion
 
     private func toNumber(_ value: Any) throws -> Double {
-        // Check Bool first using CF type ID, before numeric checks
-        // (NSNumber bridges Bool to Int/Double, so `as? Double` would match bools)
-        if isBoolValue(value), let boolVal = value as? Bool {
-            return boolVal ? 1.0 : 0.0
+        // Only numbers are allowed in numeric comparisons (no booleans or strings)
+        if isBoolValue(value) {
+            throw EvaluationError.typeMismatch
+        }
+        if value is String {
+            throw EvaluationError.typeMismatch
         }
         if let num = value as? Double {
             return num
         } else if let num = value as? Int {
             return Double(num)
-        } else if let str = value as? String, let num = Double(str) {
-            return num
         } else if value is NSNull {
             return 0.0
         } else {
