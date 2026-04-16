@@ -155,7 +155,7 @@ public final class JSONLogicEvaluator {
         let left = try resolveValue(array[0], data: data)
         let right = try resolveValue(array[1], data: data)
 
-        return isStrictEqual(left, right)
+        return try isStrictEqual(left, right)
     }
 
     private func evaluateGreaterThan(_ args: Any, data: [String: Any]) throws -> Bool {
@@ -177,7 +177,7 @@ public final class JSONLogicEvaluator {
         let left = try resolveValue(array[0], data: data)
         let right = try resolveValue(array[1], data: data)
 
-        return try isGreaterThan(left, right) || isStrictEqual(left, right)
+        return try isGreaterThan(left, right) || (try isStrictEqual(left, right))
     }
 
     private func evaluateLessThan(_ args: Any, data: [String: Any]) throws -> Bool {
@@ -199,7 +199,7 @@ public final class JSONLogicEvaluator {
         let left = try resolveValue(array[0], data: data)
         let right = try resolveValue(array[1], data: data)
 
-        return try isLessThan(left, right) || isStrictEqual(left, right)
+        return try isLessThan(left, right) || (try isStrictEqual(left, right))
     }
 
     // MARK: - Logical Operators
@@ -263,7 +263,12 @@ public final class JSONLogicEvaluator {
 
         // Check if haystack is an array (array membership)
         if let haystackArray = haystack as? [Any] {
-            return haystackArray.contains { isStrictEqual(needleStr, $0) }
+            for element in haystackArray {
+                if try isStrictEqual(needleStr, element) {
+                    return true
+                }
+            }
+            return false
         }
 
         // Check if haystack is a string (substring check)
@@ -464,22 +469,15 @@ public final class JSONLogicEvaluator {
         }
     }
 
-    private func isStrictEqual(_ lhs: Any, _ rhs: Any) -> Bool {
+    private func isStrictEqual(_ lhs: Any, _ rhs: Any) throws -> Bool {
         // Strict equality: same type and same value
         if lhs is NSNull && rhs is NSNull {
             return true
         }
 
-        // Array comparison: deep equality (element-by-element)
-        // Swift arrays are value types, so we compare contents recursively
-        if let lhsArray = lhs as? [Any], let rhsArray = rhs as? [Any] {
-            guard lhsArray.count == rhsArray.count else { return false }
-            for (lhsElem, rhsElem) in zip(lhsArray, rhsArray) {
-                if !isStrictEqual(lhsElem, rhsElem) {
-                    return false
-                }
-            }
-            return true
+        // Array comparison is not supported - throw exception
+        if lhs is [Any] || rhs is [Any] {
+            throw EvaluationError.typeMismatch
         }
 
         // Use CF type ID to distinguish Bool from numeric NSNumber
