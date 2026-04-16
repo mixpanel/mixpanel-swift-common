@@ -50,10 +50,21 @@ import Foundation
 /// Use `{"var": "key_name"}` to reference properties. Missing variables resolve to `null`.
 public final class JSONLogicEvaluator {
 
-    public enum EvaluationError: Error {
+    public enum EvaluationError: Error, LocalizedError {
         case invalidExpression
         case unsupportedOperator(String)
         case typeMismatch
+
+        public var errorDescription: String? {
+            switch self {
+            case .invalidExpression:
+                return "Invalid JSONLogic expression format. This may indicate the expression uses operators not supported by this SDK version. Please check for the latest SDK update for possible support."
+            case .unsupportedOperator(let op):
+                return "Unsupported operator '\(op)'. This operator is not supported by this SDK version. Please check for the latest SDK update for possible support."
+            case .typeMismatch:
+                return "Type mismatch in operator arguments. The operator received arguments of incompatible types. Please verify the expression uses supported data types for each operator."
+            }
+        }
     }
 
     public init() {}
