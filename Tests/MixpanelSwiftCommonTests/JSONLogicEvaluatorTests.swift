@@ -148,6 +148,22 @@ struct JSONLogicEvaluatorTests {
             }
         }
 
+        @Test("Comparison operators reject null")
+        func testComparisonRejectsNull() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">": [NSNull(), 5]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<": [5, NSNull()]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">=": [NSNull(), 0]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<=": [0, NSNull()]], data: [:])
+            }
+        }
+
         @Test("Greater than (>) with floating point")
         func testGreaterThanFloatingPoint() throws {
             #expect(try evaluator.evaluate([">": [3.14, 2.5]], data: [:]) == true)
