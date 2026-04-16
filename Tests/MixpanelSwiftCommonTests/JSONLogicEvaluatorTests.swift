@@ -225,8 +225,22 @@ struct JSONLogicEvaluatorTests {
             let expr2: [String: Any] = ["or": [false, false, false]]
             #expect(try evaluator.evaluate(expr2, data: [:]) == false)
         }
+
+        @Test("Empty AND throws error")
+        func testEmptyAndThrows() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": []], data: [:])
+            }
+        }
+
+        @Test("Empty OR throws error")
+        func testEmptyOrThrows() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": []], data: [:])
+            }
+        }
     }
-    
+
     // MARK: - IN Operator (array membership + substring)
     
     @Suite("IN Operator")
