@@ -52,8 +52,25 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["!==": [0.0, 0]], data: [:]) == false)
             #expect(try evaluator.evaluate(["!==": [-2.5, -2.6]], data: [:]) == true)
         }
+
+        @Test("=== with arrays throws error")
+        func testStrictEqualsArraysThrows() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [[], []]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [[1], [1]]], data: [:])
+            }
+        }
+
+        @Test("!== with arrays throws error")
+        func testStrictNotEqualsArraysThrows() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["!==": [[], []]], data: [:])
+            }
+        }
     }
-    
+
     // MARK: - Comparison Operators (>, >=, <, <=)
     
     @Suite("Comparison Operators")
