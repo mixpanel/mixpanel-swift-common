@@ -210,8 +210,9 @@ public final class JSONLogicEvaluator {
             throw EvaluationError.invalidExpression
         }
 
+        // 'and' requires at least 1 argument per jsonlogic.com
         if values.isEmpty {
-            return NSNull()
+            throw EvaluationError.invalidExpression
         }
 
         var lastValue: Any = NSNull()
@@ -231,8 +232,9 @@ public final class JSONLogicEvaluator {
             throw EvaluationError.invalidExpression
         }
 
+        // 'or' requires at least 1 argument per jsonlogic.com
         if values.isEmpty {
-            return NSNull()
+            throw EvaluationError.invalidExpression
         }
 
         var lastValue: Any = NSNull()
