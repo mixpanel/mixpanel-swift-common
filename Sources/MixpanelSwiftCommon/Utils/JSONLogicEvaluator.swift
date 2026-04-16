@@ -409,9 +409,8 @@ public final class JSONLogicEvaluator {
             return num
         } else if let num = value as? Int {
             return Double(num)
-        } else if value is NSNull {
-            return 0.0
         } else {
+            // null, arrays, objects, etc. are not valid for numeric comparisons
             throw EvaluationError.typeMismatch
         }
     }
