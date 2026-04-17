@@ -303,6 +303,42 @@ struct JSONLogicEvaluatorTests {
                 try evaluator.evaluate(["or": [["===": [1, 2]], NSNull()]], data: [:])
             }
         }
+
+        @Test("AND validates all operands before short-circuit")
+        func testAndValidatesAllOperands() throws {
+            // Even though first operand is false, should validate second operand
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [false, 5]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [false, "hello"]], data: [:])
+            }
+        }
+
+        @Test("OR validates all operands before short-circuit")
+        func testOrValidatesAllOperands() throws {
+            // Even though first operand is true, should validate second operand
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [true, 5]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [true, "hello"]], data: [:])
+            }
+        }
+
+        @Test("AND validates all operands even with multiple non-boolean values")
+        func testAndValidatesAllMultiple() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [false, 1, 2, 3]], data: [:])
+            }
+        }
+
+        @Test("OR validates all operands even with multiple non-boolean values")
+        func testOrValidatesAllMultiple() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [true, 1, 2, 3]], data: [:])
+            }
+        }
     }
 
     // MARK: - IN Operator (array membership + substring)

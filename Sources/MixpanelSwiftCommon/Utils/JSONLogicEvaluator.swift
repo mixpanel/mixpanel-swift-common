@@ -250,20 +250,19 @@ public final class JSONLogicEvaluator {
             )
         }
 
-        for value in values {
+        // Evaluate all operands and validate they are boolean.
+        // We check ALL operands even after finding a false value to ensure type safety.
+        let results = try values.map { value -> Bool in
             let resolved = try resolveValue(value, data: data)
-            // Only boolean values are allowed
             guard let boolValue = resolved as? Bool else {
                 throw EvaluationError.typeMismatch(
                     operator: "and",
                     reason: "all operands must be boolean expressions"
                 )
             }
-            if !boolValue {
-                return false
-            }
+            return boolValue
         }
-        return true
+        return results.allSatisfy { $0 }
     }
 
     private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Bool {
@@ -283,20 +282,19 @@ public final class JSONLogicEvaluator {
             )
         }
 
-        for value in values {
+        // Evaluate all operands and validate they are boolean.
+        // We check ALL operands even after finding a true value to ensure type safety.
+        let results = try values.map { value -> Bool in
             let resolved = try resolveValue(value, data: data)
-            // Only boolean values are allowed
             guard let boolValue = resolved as? Bool else {
                 throw EvaluationError.typeMismatch(
                     operator: "or",
                     reason: "all operands must be boolean expressions"
                 )
             }
-            if boolValue {
-                return true
-            }
+            return boolValue
         }
-        return false
+        return results.contains(true)
     }
 
     // MARK: - String/Array Operators
