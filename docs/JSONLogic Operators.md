@@ -132,18 +132,9 @@ Supported types:
 
 **`var`** - Variable resolution from data context
 ```json
-// Simple property
+// Simple property (only non nested access supported)
 {"var": "name"}          with {"name": "Alice"}    → "Alice"
 
-// Nested property
-{"var": "user.age"}      with {"user": {"age": 25}} → 25
-
-// Array index
-{"var": 1}               with ["a", "b", "c"]       → "b"
-
-// Default value
-{"var": ["missing", 0]}  with {}                    → 0
-```
 
 ## Real-World Examples
 

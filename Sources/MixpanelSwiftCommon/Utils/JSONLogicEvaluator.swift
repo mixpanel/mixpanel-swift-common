@@ -233,8 +233,8 @@ public final class JSONLogicEvaluator {
 
     // MARK: - Logical Operators
 
-    private func evaluateAnd(_ args: Any, data: [String: Any]) throws -> Any {
-        // And returns the first falsy value, or the last value if all are truthy
+    private func evaluateAnd(_ args: Any, data: [String: Any]) throws -> Bool {
+        // All operands must be boolean expressions
         guard let values = args as? [Any] else {
             throw EvaluationError.invalidExpression(
                 expression: "and",
@@ -250,19 +250,24 @@ public final class JSONLogicEvaluator {
             )
         }
 
-        var lastValue: Any = NSNull()
         for value in values {
             let resolved = try resolveValue(value, data: data)
-            if !truthy(resolved) {
-                return resolved
+            // Only boolean values are allowed
+            guard let boolValue = resolved as? Bool else {
+                throw EvaluationError.typeMismatch(
+                    operator: "and",
+                    reason: "all operands must be boolean expressions"
+                )
             }
-            lastValue = resolved
+            if !boolValue {
+                return false
+            }
         }
-        return lastValue
+        return true
     }
 
-    private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Any {
-        // Or returns the first truthy value, or the last value if all are falsy
+    private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Bool {
+        // All operands must be boolean expressions
         guard let values = args as? [Any] else {
             throw EvaluationError.invalidExpression(
                 expression: "or",
@@ -278,15 +283,20 @@ public final class JSONLogicEvaluator {
             )
         }
 
-        var lastValue: Any = NSNull()
         for value in values {
             let resolved = try resolveValue(value, data: data)
-            if truthy(resolved) {
-                return resolved
+            // Only boolean values are allowed
+            guard let boolValue = resolved as? Bool else {
+                throw EvaluationError.typeMismatch(
+                    operator: "or",
+                    reason: "all operands must be boolean expressions"
+                )
             }
-            lastValue = resolved
+            if boolValue {
+                return true
+            }
         }
-        return lastValue
+        return false
     }
 
     // MARK: - String/Array Operators
@@ -312,12 +322,23 @@ public final class JSONLogicEvaluator {
 
         // Check if haystack is an array (array membership)
         if let haystackArray = haystack as? [Any] {
+            // All elements must be strings - validate all elements even after finding a match
+            // Example: {"in": ["a", ["a", 1]]} throws because element 1 is not a string
+            var foundMatch = false
             for element in haystackArray {
+                // Validate element is a string
+                guard element is String else {
+                    throw EvaluationError.typeMismatch(
+                        operator: "in",
+                        reason: "all array elements must be strings"
+                    )
+                }
+                // Check for match using strict equality
                 if try isStrictEqual(needleStr, element) {
-                    return true
+                    foundMatch = true
                 }
             }
-            return false
+            return foundMatch
         }
 
         // Check if haystack is a string (substring check)
@@ -332,12 +353,20 @@ public final class JSONLogicEvaluator {
     }
 
     private func evaluateVar(_ args: Any, data: Any) throws -> Any {
-        // Handle default value
+        // No array index access or default values support (per Android alignment)
         var varKey: String?
-        var defaultValue: Any = NSNull()
 
         if let array = args as? [Any] {
             guard !array.isEmpty else { return data }
+
+            // Default values not supported
+            if array.count > 1 {
+                throw EvaluationError.invalidExpression(
+                    expression: "var",
+                    reason: "default values are not supported"
+                )
+            }
+
             // First element is the key (can be an expression that evaluates to a string)
             let dictData = (data as? [String: Any]) ?? [:]
             let keyValue = try resolveValue(array[0], data: dictData)
@@ -347,14 +376,10 @@ public final class JSONLogicEvaluator {
             } else {
                 varKey = toString(keyValue)
             }
-            // Second element (if present) is the default value
-            if array.count > 1 {
-                defaultValue = try resolveValue(array[1], data: dictData)
-            }
         } else if args is NSNull {
             varKey = nil  // null arg means return whole data
         } else if let expr = args as? [String: Any] {
-            // Args can be an expression (e.g., {"?:": [...]})
+            // Args can be an expression
             let dictData = (data as? [String: Any]) ?? [:]
             let keyValue = try evaluateExpression(expr, data: dictData, contextData: data)
             varKey = toString(keyValue)
@@ -371,36 +396,33 @@ public final class JSONLogicEvaluator {
             return data
         }
 
-        // Empty string key is a special case in JSONLogic - it accesses the current element
-        // This is used in array operations like map, filter, etc.
+        // Empty string key returns entire data
         if key.isEmpty {
-            // Look up "" in the data if it's a dict, otherwise return the data itself
-            if let dict = data as? [String: Any] {
-                return dict[""] ?? defaultValue
-            } else {
-                return data
-            }
+            return data
         }
 
-        // Navigate nested keys
-        let keyParts = key.split(separator: ".").map(String.init)
-        var currentData: Any = data
-
-        for keyPart in keyParts {
-            if let dict = currentData as? [String: Any] {
-                currentData = dict[keyPart] ?? NSNull()
-            } else if let array = currentData as? [Any], let index = Int(keyPart), index >= 0, index < array.count {
-                currentData = array[index]
-            } else {
-                return defaultValue
-            }
-
-            if currentData is NSNull {
-                return defaultValue
-            }
+        // Reject nested property access (dot notation not supported)
+        if key.contains(".") {
+            throw EvaluationError.invalidExpression(
+                expression: "var",
+                reason: "nested property access is not supported"
+            )
         }
 
-        return currentData
+        // Reject numeric keys (array index access not supported)
+        if Int(key) != nil {
+            throw EvaluationError.invalidExpression(
+                expression: "var",
+                reason: "array index access is not supported"
+            )
+        }
+
+        // Simple property lookup (no nesting)
+        if let dict = data as? [String: Any] {
+            return dict[key] ?? NSNull()
+        } else {
+            return NSNull()
+        }
     }
 
     // MARK: - Value Resolution
@@ -518,9 +540,15 @@ public final class JSONLogicEvaluator {
     }
 
     private func isStrictEqual(_ lhs: Any, _ rhs: Any) throws -> Bool {
-        // Strict equality: same type and same value
+        // null can only compare with null
         if lhs is NSNull && rhs is NSNull {
             return true
+        }
+        if lhs is NSNull || rhs is NSNull {
+            throw EvaluationError.typeMismatch(
+                operator: "===, !==",
+                reason: "operands must be the same type"
+            )
         }
 
         // Array comparison is not supported - throw exception
@@ -536,9 +564,12 @@ public final class JSONLogicEvaluator {
         let lhsIsBool = isBoolValue(lhs)
         let rhsIsBool = isBoolValue(rhs)
 
-        // Bool vs non-Bool: always different types in strict equality
+        // Bool vs non-Bool: throw error (different types)
         if lhsIsBool != rhsIsBool {
-            return false
+            throw EvaluationError.typeMismatch(
+                operator: "===, !==",
+                reason: "operands must be the same type"
+            )
         }
 
         // Both are booleans
@@ -569,7 +600,10 @@ public final class JSONLogicEvaluator {
             return lhsDouble == Double(rhsInt)
         }
 
-        // Different types (string vs number, etc.)
-        return false
+        // Different types (string vs number, etc.) - throw error
+        throw EvaluationError.typeMismatch(
+            operator: "===, !==",
+            reason: "operands must be the same type"
+        )
     }
 }

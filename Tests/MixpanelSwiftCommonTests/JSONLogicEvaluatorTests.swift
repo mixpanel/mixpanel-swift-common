@@ -20,18 +20,30 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["===": [true, true]], data: [:]) == true)
         }
         
-        @Test("=== rejects different types")
-        func testStrictEqualsDifferentTypes() throws {
-            #expect(try evaluator.evaluate(["===": [5, "5"]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["===": [true, 1]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["===": [false, 0]], data: [:]) == false)
+        @Test("=== throws for different types")
+        func testStrictEqualsThrowsForDifferentTypes() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [5, "5"]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [true, 1]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [false, 0]], data: [:])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [NSNull(), 0]], data: [:])
+            }
         }
         
         @Test("!== (is not)")
         func testStrictInequality() throws {
             #expect(try evaluator.evaluate(["!==": [5, 3]], data: [:]) == true)
             #expect(try evaluator.evaluate(["!==": [5, 5]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["!==": [5, "5"]], data: [:]) == true)
+            // Different types throw error
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["!==": [5, "5"]], data: [:])
+            }
         }
 
         @Test("=== with floating point numbers")
@@ -39,7 +51,10 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["===": [3.14, 3.14]], data: [:]) == true)
             #expect(try evaluator.evaluate(["===": [3.14, 3.140]], data: [:]) == true)
             #expect(try evaluator.evaluate(["===": [3.14, 3.15]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["===": [3.14, "3.14"]], data: [:]) == false)
+            // Number vs string throws error
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [3.14, "3.14"]], data: [:])
+            }
             #expect(try evaluator.evaluate(["===": [0.0, 0]], data: [:]) == true)
             #expect(try evaluator.evaluate(["===": [-1.5, -1.5]], data: [:]) == true)
         }
@@ -48,7 +63,10 @@ struct JSONLogicEvaluatorTests {
         func testStrictInequalityFloatingPoint() throws {
             #expect(try evaluator.evaluate(["!==": [3.14, 3.15]], data: [:]) == true)
             #expect(try evaluator.evaluate(["!==": [3.14, 3.14]], data: [:]) == false)
-            #expect(try evaluator.evaluate(["!==": [3.14, "3.14"]], data: [:]) == true)
+            // Number vs string throws error
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["!==": [3.14, "3.14"]], data: [:])
+            }
             #expect(try evaluator.evaluate(["!==": [0.0, 0]], data: [:]) == false)
             #expect(try evaluator.evaluate(["!==": [-2.5, -2.6]], data: [:]) == true)
         }
@@ -239,6 +257,52 @@ struct JSONLogicEvaluatorTests {
                 try evaluator.evaluate(["or": []], data: [:])
             }
         }
+
+        @Test("AND with boolean expressions")
+        func testAndWithBooleanExpressions() throws {
+            let expr: [String: Any] = ["and": [["===": [1, 1]], ["===": [2, 2]]]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == true)
+
+            let expr2: [String: Any] = ["and": [["===": [1, 1]], ["===": [1, 2]]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("OR with boolean expressions")
+        func testOrWithBooleanExpressions() throws {
+            let expr: [String: Any] = ["or": [["===": [1, 2]], ["===": [2, 2]]]]
+            #expect(try evaluator.evaluate(expr, data: [:]) == true)
+
+            let expr2: [String: Any] = ["or": [["===": [1, 2]], ["===": [2, 3]]]]
+            #expect(try evaluator.evaluate(expr2, data: [:]) == false)
+        }
+
+        @Test("AND throws for number literal operand")
+        func testAndThrowsForNumberOperand() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [["===": [1, 1]], 1]], data: [:])
+            }
+        }
+
+        @Test("OR throws for string literal operand")
+        func testOrThrowsForStringOperand() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [["===": [1, 2]], "hello"]], data: [:])
+            }
+        }
+
+        @Test("AND throws for var returning non-boolean")
+        func testAndThrowsForVarNonBoolean() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [["===": [1, 1]], ["var": "count"]]], data: ["count": 5])
+            }
+        }
+
+        @Test("OR throws for null operand")
+        func testOrThrowsForNullOperand() throws {
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [["===": [1, 2]], NSNull()]], data: [:])
+            }
+        }
     }
 
     // MARK: - IN Operator (array membership + substring)
@@ -267,15 +331,23 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(expr2, data: data) == false)
         }
 
-        @Test("IN with type mismatch (strict matching)")
-        func testInTypeMismatch() throws {
-            // String "5" should NOT match number 5
-            let expr: [String: Any] = ["in": ["5", [5, 10]]]
-            #expect(try evaluator.evaluate(expr, data: [:]) == false)
+        @Test("IN with type mismatch throws error")
+        func testInTypeMismatchThrows() throws {
+            // Array with numbers throws error (all elements must be strings)
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                let expr: [String: Any] = ["in": ["5", [5, 10]]]
+                try evaluator.evaluate(expr, data: [:])
+            }
 
             // String "5" should match string "5"
             let expr2: [String: Any] = ["in": ["5", ["5", "10"]]]
             #expect(try evaluator.evaluate(expr2, data: [:]) == true)
+
+            // Mixed array throws error
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                let expr3: [String: Any] = ["in": ["a", ["a", 1, "b"]]]
+                try evaluator.evaluate(expr3, data: [:])
+            }
         }
 
         @Test("IN operator rejects non-string types")
@@ -306,19 +378,35 @@ struct JSONLogicEvaluatorTests {
             let result = try evaluator.evaluateRaw(["var": "name"], data: data)
             #expect(result as? String == "John")
         }
-        
-        @Test("Nested property access")
-        func testNestedVar() throws {
-            let data: [String: Any] = ["user": ["name": "John", "age": 30]]
-            let result = try evaluator.evaluateRaw(["var": "user.name"], data: data)
-            #expect(result as? String == "John")
-        }
-        
-        @Test("Variable with default value")
-        func testVarWithDefault() throws {
+        @Test("Variable with default value throws error")
+        func testVarWithDefaultThrows() throws {
             let data: [String: Any] = ["name": "John"]
-            let result = try evaluator.evaluateRaw(["var": ["missing", "default"]], data: data)
-            #expect(result as? String == "default")
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": ["missing", "default"]], data: data)
+            }
+        }
+
+        @Test("Variable with missing key returns null")
+        func testVarMissingReturnsNull() throws {
+            let data: [String: Any] = ["name": "John"]
+            let result = try evaluator.evaluateRaw(["var": "missing"], data: data)
+            #expect(result is NSNull)
+        }
+
+        @Test("Variable with array index throws error")
+        func testVarArrayIndexThrows() throws {
+            let data: [String: Any] = ["items": ["a", "b", "c"]]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": "items.0"], data: data)
+            }
+        }
+
+        @Test("Variable with numeric key throws error")
+        func testVarNumericKeyThrows() throws {
+            let data = ["a", "b", "c"]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateAny(["var": 1], data: data)
+            }
         }
     }
     
@@ -422,33 +510,38 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(expr, data: data) == true)
         }
         
-        @Test("Missing values")
-        func testMissingValue() throws {
+        @Test("Missing values throw type mismatch")
+        func testMissingValueThrows() throws {
             let data: [String: Any] = [
                 "$score": 17,
             ]
+            // Missing var returns null, comparing null with number throws error
             let expr: [String: Any] = [
                 "or": [
                     [">=": [["var": "$score"], 80]],
                     ["===": [["var": "$player_type"], 90]]
                 ]
             ]
-            #expect(try evaluator.evaluate(expr, data: data) == false)
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(expr, data: data)
+            }
         }
 
-        @Test("Feature flag with default value")
-        func testFeatureFlagWithDefault() throws {
+        @Test("Feature flag default values not supported")
+        func testFeatureFlagDefaultNotSupported() throws {
             let data: [String: Any] = [
                 "$user_id": 12345
             ]
-            // Feature flag is missing, should use default "disabled"
+            // Default values not supported, throws error
             let expr: [String: Any] = [
                 "and": [
                     ["===": [["var": ["$feature_flag", "disabled"]], "enabled"]],
                     [">": [["var": "$user_id"], 0]]
                 ]
             ]
-            #expect(try evaluator.evaluate(expr, data: data) == false)
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(expr, data: data)
+            }
         }
 
         // MARK: - Advanced Combinations (5+ operators)
