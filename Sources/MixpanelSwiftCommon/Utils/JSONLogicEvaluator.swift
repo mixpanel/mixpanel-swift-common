@@ -51,18 +51,18 @@ import Foundation
 public final class JSONLogicEvaluator {
 
     public enum EvaluationError: Error, LocalizedError {
-        case invalidExpression
+        case invalidExpression(expression: String, reason: String)
         case unsupportedOperator(String)
-        case typeMismatch
+        case typeMismatch(operator: String, reason: String)
 
         public var errorDescription: String? {
             switch self {
-            case .invalidExpression:
-                return "Invalid JSONLogic expression format. This may indicate the expression uses operators not supported by this SDK version. Please check for the latest SDK update for possible support."
+            case .invalidExpression(let expression, let reason):
+                return "Invalid expression '\(expression)': \(reason). Try updating to a newer SDK version for possible expression support."
             case .unsupportedOperator(let op):
-                return "Unsupported operator '\(op)'. This operator is not supported by this SDK version. Please check for the latest SDK update for possible support."
-            case .typeMismatch:
-                return "Type mismatch in operator arguments. The operator received arguments of incompatible types. Please verify the expression uses supported data types for each operator."
+                return "Unsupported operator '\(op)'. Try updating to a newer SDK version for possible operator support."
+            case .typeMismatch(let op, let reason):
+                return "Type mismatch in '\(op)': \(reason). Try updating to a newer SDK version for possible type support."
             }
         }
     }
@@ -127,7 +127,10 @@ public final class JSONLogicEvaluator {
 
         guard expression.count == 1,
               let (`operator`, args) = expression.first else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "\(expression)",
+                reason: "expression must contain exactly one operator"
+            )
         }
 
         switch `operator` {
@@ -160,7 +163,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateEquals(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "===",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let left = try resolveValue(array[0], data: data)
@@ -171,7 +177,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateGreaterThan(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: ">",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let left = try resolveValue(array[0], data: data)
@@ -182,7 +191,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateGreaterOrEqual(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: ">=",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let left = try resolveValue(array[0], data: data)
@@ -193,7 +205,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateLessThan(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "<",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let left = try resolveValue(array[0], data: data)
@@ -204,7 +219,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateLessOrEqual(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "<=",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let left = try resolveValue(array[0], data: data)
@@ -218,12 +236,18 @@ public final class JSONLogicEvaluator {
     private func evaluateAnd(_ args: Any, data: [String: Any]) throws -> Any {
         // And returns the first falsy value, or the last value if all are truthy
         guard let values = args as? [Any] else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "and",
+                reason: "arguments must be an array"
+            )
         }
 
         // 'and' requires at least 1 argument per jsonlogic.com
         if values.isEmpty {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "and",
+                reason: "requires at least 1 argument"
+            )
         }
 
         var lastValue: Any = NSNull()
@@ -240,12 +264,18 @@ public final class JSONLogicEvaluator {
     private func evaluateOr(_ args: Any, data: [String: Any]) throws -> Any {
         // Or returns the first truthy value, or the last value if all are falsy
         guard let values = args as? [Any] else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "or",
+                reason: "arguments must be an array"
+            )
         }
 
         // 'or' requires at least 1 argument per jsonlogic.com
         if values.isEmpty {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "or",
+                reason: "requires at least 1 argument"
+            )
         }
 
         var lastValue: Any = NSNull()
@@ -263,7 +293,10 @@ public final class JSONLogicEvaluator {
 
     private func evaluateIn(_ args: Any, data: [String: Any]) throws -> Bool {
         guard let array = args as? [Any], array.count == 2 else {
-            throw EvaluationError.invalidExpression
+            throw EvaluationError.invalidExpression(
+                expression: "in",
+                reason: "requires exactly 2 arguments"
+            )
         }
 
         let needle = try resolveValue(array[0], data: data)
@@ -271,7 +304,10 @@ public final class JSONLogicEvaluator {
 
         // Only strings support the 'in' operator
         guard let needleStr = needle as? String else {
-            throw EvaluationError.typeMismatch
+            throw EvaluationError.typeMismatch(
+                operator: "in",
+                reason: "requires a string needle"
+            )
         }
 
         // Check if haystack is an array (array membership)
@@ -289,7 +325,10 @@ public final class JSONLogicEvaluator {
             return haystackStr.contains(needleStr)
         }
 
-        throw EvaluationError.typeMismatch
+        throw EvaluationError.typeMismatch(
+            operator: "in",
+            reason: "haystack must be a string or array"
+        )
     }
 
     private func evaluateVar(_ args: Any, data: Any) throws -> Any {
@@ -416,20 +455,17 @@ public final class JSONLogicEvaluator {
     // MARK: - Type Coercion
 
     private func toNumber(_ value: Any) throws -> Double {
-        // Only numbers are allowed in numeric comparisons (no booleans or strings)
-        if isBoolValue(value) {
-            throw EvaluationError.typeMismatch
-        }
-        if value is String {
-            throw EvaluationError.typeMismatch
-        }
+        // Only numbers are allowed in numeric comparisons
         if let num = value as? Double {
             return num
         } else if let num = value as? Int {
             return Double(num)
         } else {
             // null, arrays, objects, etc. are not valid for numeric comparisons
-            throw EvaluationError.typeMismatch
+            throw EvaluationError.typeMismatch(
+                operator: ">, <, >=, <=",
+                reason: "only support numbers"
+            )
         }
     }
 
@@ -489,7 +525,10 @@ public final class JSONLogicEvaluator {
 
         // Array comparison is not supported - throw exception
         if lhs is [Any] || rhs is [Any] {
-            throw EvaluationError.typeMismatch
+            throw EvaluationError.typeMismatch(
+                operator: "===, !==",
+                reason: "array comparison is not supported"
+            )
         }
 
         // Use CF type ID to distinguish Bool from numeric NSNumber
