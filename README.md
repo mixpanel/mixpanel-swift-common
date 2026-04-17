@@ -21,7 +21,7 @@ Essential JSONLogic operators for targeting and filtering.
 
 Supports 10 operators: `===`, `!==`, `<`, `<=`, `>`, `>=`, `in`, `and`, `or`, `var`.
 
-See [OPERATORS.md](Sources/MixpanelSwiftCommon/Utils/JSONLogic%20Operators.md) for complete documentation and examples.
+See [OPERATORS.md](docs/JSONLogic%20Operators.md) for complete documentation and examples.
 
 ```swift
 let evaluator = JSONLogicEvaluator()
