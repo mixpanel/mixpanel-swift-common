@@ -254,7 +254,8 @@ public final class JSONLogicEvaluator {
         // We check ALL operands even after finding a false value to ensure type safety.
         let results = try values.map { value -> Bool in
             let resolved = try resolveValue(value, data: data)
-            guard let boolValue = resolved as? Bool else {
+            // Use isBoolValue to prevent NSNumber bridging (e.g., 1 as Bool)
+            guard isBoolValue(resolved), let boolValue = resolved as? Bool else {
                 throw EvaluationError.typeMismatch(
                     operator: "and",
                     reason: "all operands must be boolean expressions"
@@ -286,7 +287,8 @@ public final class JSONLogicEvaluator {
         // We check ALL operands even after finding a true value to ensure type safety.
         let results = try values.map { value -> Bool in
             let resolved = try resolveValue(value, data: data)
-            guard let boolValue = resolved as? Bool else {
+            // Use isBoolValue to prevent NSNumber bridging (e.g., 1 as Bool)
+            guard isBoolValue(resolved), let boolValue = resolved as? Bool else {
                 throw EvaluationError.typeMismatch(
                     operator: "or",
                     reason: "all operands must be boolean expressions"
@@ -352,10 +354,16 @@ public final class JSONLogicEvaluator {
 
     private func evaluateVar(_ args: Any, data: Any) throws -> Any {
         // No array index access or default values support (per Android alignment)
-        var varKey: String?
+        var varKey: String
 
         if let array = args as? [Any] {
-            guard !array.isEmpty else { return data }
+            // Empty array is not valid
+            if array.isEmpty {
+                throw EvaluationError.invalidExpression(
+                    expression: "var",
+                    reason: "key cannot be null or empty"
+                )
+            }
 
             // Default values not supported
             if array.count > 1 {
@@ -370,54 +378,47 @@ public final class JSONLogicEvaluator {
             let keyValue = try resolveValue(array[0], data: dictData)
 
             if keyValue is NSNull {
-                varKey = nil  // null key means return whole data
-            } else {
-                varKey = toString(keyValue)
+                throw EvaluationError.invalidExpression(
+                    expression: "var",
+                    reason: "key cannot be null or empty"
+                )
             }
+            varKey = toString(keyValue)
         } else if args is NSNull {
-            varKey = nil  // null arg means return whole data
+            // Null arg is not valid
+            throw EvaluationError.invalidExpression(
+                expression: "var",
+                reason: "key cannot be null or empty"
+            )
         } else if let expr = args as? [String: Any] {
             // Args can be an expression
             let dictData = (data as? [String: Any]) ?? [:]
             let keyValue = try evaluateExpression(expr, data: dictData, contextData: data)
+
+            if keyValue is NSNull {
+                throw EvaluationError.invalidExpression(
+                    expression: "var",
+                    reason: "key cannot be null or empty"
+                )
+            }
             varKey = toString(keyValue)
         } else {
             varKey = toString(args)
         }
 
-        // Null key returns entire data
-        if varKey == nil {
-            return data
-        }
+        // Note: Removed null key check - we throw early above now
 
-        guard let key = varKey else {
-            return data
-        }
-
-        // Empty string key returns entire data
-        if key.isEmpty {
-            return data
-        }
-
-        // Reject nested property access (dot notation not supported)
-        if key.contains(".") {
+        // Empty string key is not valid
+        if varKey.isEmpty {
             throw EvaluationError.invalidExpression(
                 expression: "var",
-                reason: "nested property access is not supported"
-            )
-        }
-
-        // Reject numeric keys (array index access not supported)
-        if Int(key) != nil {
-            throw EvaluationError.invalidExpression(
-                expression: "var",
-                reason: "array index access is not supported"
+                reason: "key cannot be an empty string"
             )
         }
 
         // Simple property lookup (no nesting)
         if let dict = data as? [String: Any] {
-            return dict[key] ?? NSNull()
+            return dict[varKey] ?? NSNull()
         } else {
             return NSNull()
         }
@@ -426,9 +427,17 @@ public final class JSONLogicEvaluator {
     // MARK: - Value Resolution
 
     private func resolveValue(_ value: Any, data: [String: Any]) throws -> Any {
-        // If it's an expression (dictionary with single operator key), evaluate it
-        if let dict = value as? [String: Any], dict.count == 1 {
-            return try evaluateExpression(dict, data: data)
+        // If it's a dictionary, check if it's an expression or an invalid value
+        if let dict = value as? [String: Any] {
+            // Single-key dictionary: treat as expression
+            if dict.count == 1 {
+                return try evaluateExpression(dict, data: data)
+            }
+            // Multi-key dictionary: not supported as a value
+            throw EvaluationError.typeMismatch(
+                operator: "value",
+                reason: "dictionary/object values are not supported"
+            )
         }
 
         // If it's an array, evaluate any expressions inside
@@ -475,6 +484,14 @@ public final class JSONLogicEvaluator {
     // MARK: - Type Coercion
 
     private func toNumber(_ value: Any) throws -> Double {
+        // Booleans must be rejected before numeric checks (NSNumber bridging)
+        if isBoolValue(value) {
+            throw EvaluationError.typeMismatch(
+                operator: ">, <, >=, <=",
+                reason: "only support numbers"
+            )
+        }
+
         // Only numbers are allowed in numeric comparisons
         if let num = value as? Double {
             return num

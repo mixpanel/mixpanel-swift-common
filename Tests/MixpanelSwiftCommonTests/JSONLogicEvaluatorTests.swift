@@ -218,8 +218,37 @@ struct JSONLogicEvaluatorTests {
             #expect(try evaluator.evaluate(["<=": [-1.5, -1.5]], data: [:]) == true)
             #expect(try evaluator.evaluate(["<=": [0, 0.0]], data: [:]) == true)
         }
+
+        @Test("Comparison operators reject booleans from var (NSNumber bridging)")
+        func testComparisonRejectsBoolsFromVar() throws {
+            // NSNumber bridging could let booleans pass as numbers - must be prevented
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">": [["var": "active"], 0]], data: ["active": true])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<": [["var": "enabled"], 1]], data: ["enabled": false])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate([">=": [["var": "flag"], 0]], data: ["flag": true])
+            }
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["<=": [["var": "status"], 1]], data: ["status": false])
+            }
+        }
+
+        @Test("Comparison operators reject dictionary values")
+        func testComparisonRejectsDictionaries() throws {
+            // Dictionary from var
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [["var": "obj"], ["a": 1]]], data: ["obj": ["a": 1]])
+            }
+            // Multi-key dictionary literals
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [["x": 1, "y": 2], ["x": 1, "y": 2]]], data: [:])
+            }
+        }
     }
-    
+
     // MARK: - Logical Operators (and, or)
     
     @Suite("Logical Operators")
@@ -339,6 +368,22 @@ struct JSONLogicEvaluatorTests {
                 try evaluator.evaluate(["or": [true, 1, 2, 3]], data: [:])
             }
         }
+
+        @Test("AND rejects numbers from var (NSNumber bridging)")
+        func testAndRejectsNumbersFromVar() throws {
+            // NSNumber bridging could let numbers pass as Bool - must be prevented
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["and": [["var": "active"], ["===": [1, 1]]]], data: ["active": 1])
+            }
+        }
+
+        @Test("OR rejects numbers from var (NSNumber bridging)")
+        func testOrRejectsNumbersFromVar() throws {
+            // NSNumber bridging could let numbers pass as Bool - must be prevented
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["or": [["var": "active"], ["===": [1, 2]]]], data: ["active": 0])
+            }
+        }
     }
 
     // MARK: - IN Operator (array membership + substring)
@@ -429,19 +474,65 @@ struct JSONLogicEvaluatorTests {
             #expect(result is NSNull)
         }
 
-        @Test("Variable with array index throws error")
-        func testVarArrayIndexThrows() throws {
-            let data: [String: Any] = ["items": ["a", "b", "c"]]
+        @Test("Variable with dot in key name is treated as literal")
+        func testVarDotInKeyNameIsLiteral() throws {
+            // Dots are valid characters in property names (e.g., "a.b.c" is a Mixpanel property)
+            let data: [String: Any] = ["items.0": "value", "a.b.c": 42]
+            let result1 = try evaluator.evaluateRaw(["var": "items.0"], data: data)
+            #expect(result1 as? String == "value")
+
+            let result2 = try evaluator.evaluateRaw(["var": "a.b.c"], data: data)
+            #expect(result2 as? Int == 42)
+        }
+
+        @Test("Variable with numeric string key works")
+        func testVarNumericStringKey() throws {
+            // Numeric strings like "0", "123" are valid dictionary keys
+            let data: [String: Any] = ["0": "zero", "123": "one-two-three"]
+            let result1 = try evaluator.evaluateRaw(["var": "0"], data: data)
+            #expect(result1 as? String == "zero")
+
+            let result2 = try evaluator.evaluateRaw(["var": "123"], data: data)
+            #expect(result2 as? String == "one-two-three")
+        }
+
+        @Test("Variable with empty string key throws error")
+        func testVarEmptyStringKeyThrows() throws {
+            let data: [String: Any] = ["name": "John"]
             #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
-                try evaluator.evaluateRaw(["var": "items.0"], data: data)
+                try evaluator.evaluateRaw(["var": ""], data: data)
             }
         }
 
+        @Test("Variable with null argument throws error")
+        func testVarNullArgThrows() throws {
+            let data: [String: Any] = ["name": "John"]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": NSNull()], data: data)
+            }
+        }
+
+        @Test("Variable with empty array throws error")
+        func testVarEmptyArrayThrows() throws {
+            let data: [String: Any] = ["name": "John"]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": []], data: data)
+            }
+        }
+
+        @Test("Variable that evaluates to null throws error")
+        func testVarExpressionEvaluatingToNullThrows() throws {
+            let data: [String: Any] = ["missing": NSNull()]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": ["var": "missing"]], data: data)
+            }
+        }
+        
         @Test("Variable with numeric key throws error")
         func testVarNumericKeyThrows() throws {
-            let data = ["a", "b", "c"]
+            let data: [String: Any] = ["name": "john"]
             #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
-                try evaluator.evaluateAny(["var": 1], data: data)
+                try evaluator.evaluateRaw(["var": ["var": 1]], data: data)
             }
         }
     }

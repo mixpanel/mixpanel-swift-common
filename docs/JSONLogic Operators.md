@@ -144,9 +144,21 @@ Supported types:
 
 **`var`** - Variable resolution from data context
 ```json
-// Simple property (only non nested access supported)
+// Simple property lookup
 {"var": "name"}          with {"name": "Alice"}    → "Alice"
+{"var": "missing"}       with {"name": "Alice"}    → null
 
+// Dots are valid characters in property names (e.g., Mixpanel properties)
+{"var": "a.b.c"}         with {"a.b.c": 42}        → 42
+
+// Numeric strings are valid property names
+{"var": "0"}             with {"0": "zero"}        → "zero"
+{"var": "123"}           with {"123": "value"}     → "value"
+
+// Empty string, null, and empty array keys throw errors
+{"var": ""}              → ERROR (key cannot be empty)
+{"var": null}            → ERROR (key cannot be null or empty)
+{"var": []}              → ERROR (key cannot be null or empty)
 
 ## Real-World Examples
 
@@ -211,8 +223,11 @@ Each data type supports specific operators:
 
 - **Type errors throw exceptions**: All operators throw errors for invalid types rather than returning `false` or performing type coercion. This ensures type safety and prevents silent failures.
 - **No type coercion**: `===` and `!==` require exact type match (e.g., `5 !== "5"` throws error, not returns true)
+- **NSNumber bridging protection**: The implementation explicitly prevents Swift's NSNumber bridging behavior where numbers can be cast as booleans and vice versa. For example, `{"and": [{"var": "count"}, true]}` with `count: 1` will throw an error (not treat `1` as `true`). Similarly, `{">": [{"var": "active"}, 0]}` with `active: true` will throw an error (not convert `true` to `1`).
+- **Dictionary/Object values**: Dictionary values (e.g., `{"a": 1, "b": 2}`) are not supported in comparisons or operations. Only primitive values (strings, numbers, booleans, null) are allowed. While you can access dictionary properties using `var` (e.g., `{"var": "user"}` can return a dictionary), you cannot compare or operate on dictionary values directly.
 - **Comparison operators** (`<`, `<=`, `>`, `>=`) only work with numbers. Strings, booleans, and arrays will throw `typeMismatch` error
 - **Logical operators** (`and`, `or`) require all operands to be boolean expressions. Non-boolean values (numbers, strings, etc.) will throw `typeMismatch` error. Unlike typical short-circuit evaluation, ALL operands are validated before returning, ensuring type safety even when the result could be determined early
 - **`in` operator** requires string as needle (first argument). Numbers, booleans, and arrays as needle will throw `typeMismatch` error
+- **`var` operator** supports simple property lookup only. Dots (`.`) and numeric strings are treated as literal key names, not nested access or array indices. Empty string, null, and empty array keys all throw errors. Missing properties return `null`.
 - **Array limitations**: Arrays cannot be compared with `===` or `!==`. Arrays can be used as haystack in `in` operator, but array elements cannot themselves be arrays
 - **Strict matching**: The `in` operator uses strict equality (`===`) for array element matching
