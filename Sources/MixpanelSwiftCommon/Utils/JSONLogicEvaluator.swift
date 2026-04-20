@@ -69,13 +69,22 @@ public final class JSONLogicEvaluator {
 
     public init() {}
 
-    /// Evaluate a JSONLogic expression (returns Bool for backward compatibility)
+    /// Evaluate a JSONLogic expression (must evaluate to a boolean)
     public func evaluate(
         _ expression: [String: Any],
         data: [String: Any]
     ) throws -> Bool {
         let result = try evaluateExpression(expression, data: data)
-        return truthy(result)
+
+        // Use isBoolValue to prevent NSNumber bridging
+        guard isBoolValue(result), let boolResult = result as? Bool else {
+            throw EvaluationError.typeMismatch(
+                operator: "evaluate",
+                reason: "expression must evaluate to a boolean, got \(type(of: result))"
+            )
+        }
+
+        return boolResult
     }
 
     /// Evaluate a JSONLogic expression and return the raw result (Any type)
@@ -353,7 +362,7 @@ public final class JSONLogicEvaluator {
     }
 
     private func evaluateVar(_ args: Any, data: Any) throws -> Any {
-        // No array index access or default values support (per Android alignment)
+        // No array index access or default values support
         var varKey: String
 
         if let array = args as? [Any] {
@@ -361,7 +370,7 @@ public final class JSONLogicEvaluator {
             if array.isEmpty {
                 throw EvaluationError.invalidExpression(
                     expression: "var",
-                    reason: "key cannot be null or empty"
+                    reason: "key cannot be empty"
                 )
             }
 
@@ -380,15 +389,15 @@ public final class JSONLogicEvaluator {
             if keyValue is NSNull {
                 throw EvaluationError.invalidExpression(
                     expression: "var",
-                    reason: "key cannot be null or empty"
+                    reason: "key cannot be null"
                 )
             }
-            varKey = toString(keyValue)
+            varKey = try toString(keyValue)
         } else if args is NSNull {
             // Null arg is not valid
             throw EvaluationError.invalidExpression(
                 expression: "var",
-                reason: "key cannot be null or empty"
+                reason: "key cannot be null"
             )
         } else if let expr = args as? [String: Any] {
             // Args can be an expression
@@ -398,12 +407,12 @@ public final class JSONLogicEvaluator {
             if keyValue is NSNull {
                 throw EvaluationError.invalidExpression(
                     expression: "var",
-                    reason: "key cannot be null or empty"
+                    reason: "key cannot be null"
                 )
             }
-            varKey = toString(keyValue)
+            varKey = try toString(keyValue)
         } else {
-            varKey = toString(args)
+            varKey = try toString(args)
         }
 
         // Note: Removed null key check - we throw early above now
@@ -440,11 +449,8 @@ public final class JSONLogicEvaluator {
             )
         }
 
-        // If it's an array, evaluate any expressions inside
-        if let array = value as? [Any] {
-            return try array.map { try resolveValue($0, data: data) }
-        }
-
+        // Arrays and primitives are returned as-is (literal values only)
+        // We don't recursively evaluate expressions inside arrays since we don't support that
         return value
     }
 
@@ -506,52 +512,15 @@ public final class JSONLogicEvaluator {
         }
     }
 
-    private func toString(_ value: Any) -> String {
+    private func toString(_ value: Any) throws -> String {
         if let str = value as? String {
             return str
         }
-        // Check Bool before numeric types to avoid NSNumber bridging confusion
-        // (without this, `true` matches `as? Double` and returns "1" instead of "true")
-        if isBoolValue(value), let boolVal = value as? Bool {
-            return boolVal ? "true" : "false"
-        }
-        if let num = value as? Double {
-            // If it's a whole number, format without decimal
-            if num.truncatingRemainder(dividingBy: 1) == 0 && !num.isNaN && !num.isInfinite {
-                return String(Int(num))
-            }
-            return String(num)
-        } else if let num = value as? Int {
-            return String(num)
-        } else if value is NSNull {
-            return ""
-        } else if let array = value as? [Any] {
-            return array.map { toString($0) }.joined(separator: ",")
-        } else {
-            return "\(value)"
-        }
-    }
-
-    private func truthy(_ value: Any) -> Bool {
-        // Check Bool first using CF type ID to avoid NSNumber bridging confusion
-        if isBoolValue(value), let boolVal = value as? Bool {
-            return boolVal
-        }
-        if let num = value as? Double {
-            return !num.isNaN && num != 0.0
-        } else if let num = value as? Int {
-            return num != 0
-        } else if let str = value as? String {
-            return !str.isEmpty
-        } else if let array = value as? [Any] {
-            return !array.isEmpty
-        } else if let dict = value as? [String: Any] {
-            return !dict.isEmpty
-        } else if value is NSNull {
-            return false
-        } else {
-            return true
-        }
+        // null, arrays, int, double, objects, etc. are not valid for string
+        throw EvaluationError.typeMismatch(
+            operator: "===, !===, in",
+            reason: "only support strings"
+        )
     }
 
     private func isStrictEqual(_ lhs: Any, _ rhs: Any) throws -> Bool {

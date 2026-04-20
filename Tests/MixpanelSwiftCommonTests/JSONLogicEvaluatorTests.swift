@@ -532,8 +532,22 @@ struct JSONLogicEvaluatorTests {
         func testVarNumericKeyThrows() throws {
             let data: [String: Any] = ["name": "john"]
             #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
-                try evaluator.evaluateRaw(["var": ["var": 1]], data: data)
+                try evaluator.evaluateRaw(["var": 22], data: data)
             }
+        }
+
+        @Test("Top-level non-boolean expression throws error in evaluate()")
+        func testNonBooleanTopLevelThrows() throws {
+            let data: [String: Any] = ["name": "Alice"]
+
+            // evaluate() requires boolean result - non-boolean should throw
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["var": "name"], data: data)
+            }
+
+            // evaluateRaw() allows any type - should work
+            let result = try evaluator.evaluateRaw(["var": "name"], data: data)
+            #expect(result as? String == "Alice")
         }
     }
     
