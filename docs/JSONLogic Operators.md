@@ -148,12 +148,13 @@ Supported types:
 {"var": "name"}          with {"name": "Alice"}    → "Alice"
 {"var": "missing"}       with {"name": "Alice"}    → null
 
-// Dots are valid characters in property names (e.g., Mixpanel properties)
-{"var": "a.b.c"}         with {"a.b.c": 42}        → 42
-
 // Numeric strings are valid property names
 {"var": "0"}             with {"0": "zero"}        → "zero"
 {"var": "123"}           with {"123": "value"}     → "value"
+
+// Dot notation is NOT supported - throws error
+{"var": "user.name"}     → ERROR (dot notation not supported)
+{"var": "a.b.c"}         → ERROR (dot notation not supported)
 
 // Empty string, null, and empty array keys throw errors
 {"var": ""}              → ERROR (key cannot be empty)
@@ -228,6 +229,6 @@ Each data type supports specific operators:
 - **Comparison operators** (`<`, `<=`, `>`, `>=`) only work with numbers. Strings, booleans, and arrays will throw `typeMismatch` error
 - **Logical operators** (`and`, `or`) require all operands to be boolean expressions. Non-boolean values (numbers, strings, etc.) will throw `typeMismatch` error. Unlike typical short-circuit evaluation, ALL operands are validated before returning, ensuring type safety even when the result could be determined early
 - **`in` operator** requires string as needle (first argument). Numbers, booleans, and arrays as needle will throw `typeMismatch` error
-- **`var` operator** supports simple property lookup only. Dots (`.`) and numeric strings are treated as literal key names, not nested access or array indices. Empty string, null, and empty array keys all throw errors. Missing properties return `null`.
+- **`var` operator** supports simple property lookup only (no nested access). Dot notation (`.`) is not supported and will throw an error. Numeric strings are treated as literal key names. Empty string, null, and empty array keys all throw errors. Missing properties return `null`.
 - **Array limitations**: Arrays cannot be compared with `===` or `!==`. Arrays can be used as haystack in `in` operator, but array elements cannot themselves be arrays
 - **Strict matching**: The `in` operator uses strict equality (`===`) for array element matching
