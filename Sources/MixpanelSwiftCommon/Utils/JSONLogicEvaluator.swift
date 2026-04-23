@@ -425,6 +425,14 @@ public final class JSONLogicEvaluator {
             )
         }
 
+        // Dot notation is not supported
+        if varKey.contains(".") {
+            throw EvaluationError.invalidExpression(
+                expression: "var",
+                reason: "dot notation is not supported in variable keys"
+            )
+        }
+
         // Simple property lookup (no nesting)
         if let dict = data as? [String: Any] {
             return dict[varKey] ?? NSNull()

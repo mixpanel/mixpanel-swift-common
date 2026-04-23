@@ -474,15 +474,71 @@ struct JSONLogicEvaluatorTests {
             #expect(result is NSNull)
         }
 
-        @Test("Variable with dot in key name is treated as literal")
-        func testVarDotInKeyNameIsLiteral() throws {
-            // Dots are valid characters in property names (e.g., "a.b.c" is a Mixpanel property)
-            let data: [String: Any] = ["items.0": "value", "a.b.c": 42]
-            let result1 = try evaluator.evaluateRaw(["var": "items.0"], data: data)
-            #expect(result1 as? String == "value")
+        @Test("Variable with dot notation throws error")
+        func testVarDotNotationThrows() throws {
+            // Dot notation is not supported in variable keys
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": "user.name"], data: ["username": "John"])
+            }
 
-            let result2 = try evaluator.evaluateRaw(["var": "a.b.c"], data: data)
-            #expect(result2 as? Int == 42)
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": "a.b.c"], data: ["a.b.c": 42])
+            }
+
+            // Dot at the beginning
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": ".prop"], data: ["prop": "value"])
+            }
+
+            // Dot at the end
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": "prop."], data: ["prop.": "value"])
+            }
+
+            // Multiple dots
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": "user.profile.name"], data: ["name": "John"])
+            }
+        }
+
+        @Test("Dot notation in var with expression")
+        func testDotNotationInVarExpression() throws {
+            // Dot notation in var key that comes from an expression
+            let data: [String: Any] = ["key_name": "user.id", "user_id": 123]
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluateRaw(["var": ["var": "key_name"]], data: data)
+            }
+        }
+
+        @Test("Dot notation in complex expressions")
+        func testDotNotationInComplexExpressions() throws {
+            // Dot in var used in comparison
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(["===": [["var": "user.age"], 25]], data: ["age": 25])
+            }
+
+            // Dot in var used in logical operators
+            #expect(throws: JSONLogicEvaluator.EvaluationError.self) {
+                try evaluator.evaluate(
+                    ["and": [["===": [["var": "prop.name"], "value"]], ["===": [true, true]]]],
+                    data: ["prop.name": "value"]
+                )
+            }
+        }
+
+        @Test("Data with dot notation in unused keys is allowed")
+        func testUnusedDotNotationAllowed() throws {
+            // Data can have keys with dots as long as they're not accessed
+            let data: [String: Any] = ["user.name": "John", "age": 25]
+
+            // This should work fine - we're not accessing the "user.name" key
+            let result = try evaluator.evaluateRaw(["var": "age"], data: data)
+            #expect(result as? Int == 25)
+
+            // Multiple unused dot keys
+            let data2: [String: Any] = ["a.b.c": 1, "x.y": 2, "name": "test"]
+            let result2 = try evaluator.evaluateRaw(["var": "name"], data: data2)
+            #expect(result2 as? String == "test")
         }
 
         @Test("Variable with numeric string key works")
