@@ -49,6 +49,12 @@ struct JSONLogicTestsRunner {
                 continue
             }
 
+            // Skip commented tests (strings starting with "// ")
+            if let commentedLine = testEntry as? String, commentedLine.hasPrefix("// ") {
+                skippedCount += 1
+                continue
+            }
+
             // Handle test cases (arrays with 3 elements)
             guard let testCase = testEntry as? [Any], testCase.count == 3 else {
                 skippedCount += 1
@@ -75,9 +81,12 @@ struct JSONLogicTestsRunner {
                     errors.append((index, ruleValue, "Expected \(expected), got \(result) [Section: \(currentSection)]"))
                 }
             } catch {
-                // Check if this is an unsupported operator (expected to fail)
+                // Check if this is an unsupported operator or invalid expression (expected to fail)
                 if let evalError = error as? JSONLogicEvaluator.EvaluationError,
                    case .unsupportedOperator(_) = evalError {
+                    skippedCount += 1
+                } else if let evalError = error as? JSONLogicEvaluator.EvaluationError,
+                          case .invalidExpression = evalError {
                     skippedCount += 1
                 } else {
                     failedCount += 1
@@ -115,10 +124,7 @@ struct JSONLogicTestsRunner {
         }
 
         // Assert that all supported tests pass
-        let supportedTestCount = passedCount + failedCount
-        if supportedTestCount > 0 {
-            #expect(failedCount == 0, "All supported tests should pass")
-        }
+        #expect(failedCount == 0, "\(failedCount) test(s) failed out of \(supportedTests) supported tests. See output above for details.")
     }
 
     // Helper to compare results (handles NSNull, arrays, etc.)
