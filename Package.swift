@@ -12,6 +12,7 @@ let package = Package(
     products: [
         .library(
             name: "MixpanelSwiftCommon",
+            type: .dynamic,
             targets: ["MixpanelSwiftCommon"]
         )
     ],
