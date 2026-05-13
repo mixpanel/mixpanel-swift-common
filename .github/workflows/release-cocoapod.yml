@@ -1,0 +1,111 @@
+name: Release CocoaPod
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.1.0 without v prefix)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-cocoapod-${{ inputs.version }}
+  cancel-in-progress: false  # Never cancel during release
+
+jobs:
+  release-cocoapod:
+    name: "📦 Release CocoaPod"
+    runs-on: macos-26
+    environment: production
+    steps:
+      - name: Checkout tag
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        with:
+          ref: ${{ inputs.version }}
+          fetch-depth: 0
+
+      - name: Verify tag exists
+        run: |
+          if ! git describe --exact-match --tags HEAD >/dev/null 2>&1; then
+            echo "ERROR: Current commit is not tagged with ${{ inputs.version }}"
+            echo ""
+            echo "Make sure you've run the 'Release SPM' workflow first."
+            echo "It creates the tag that this workflow needs."
+            exit 1
+          fi
+
+          CURRENT_TAG=$(git describe --exact-match --tags HEAD)
+          if [ "$CURRENT_TAG" != "${{ inputs.version }}" ]; then
+            echo "ERROR: Tag mismatch"
+            echo "  Expected: ${{ inputs.version }}"
+            echo "  Found: $CURRENT_TAG"
+            exit 1
+          fi
+
+          echo "✓ Checked out tag: $CURRENT_TAG"
+
+      - name: Extract and validate podspec version
+        run: |
+          INPUT_VERSION="${{ inputs.version }}"
+
+          # Extract version from podspec
+          PODSPEC_VERSION_LINE=$(grep -E "s.version[[:space:]]*=[[:space:]]*'[0-9]+\.[0-9]+\.[0-9]+'" MixpanelSwiftCommon.podspec || true)
+          if [ -z "$PODSPEC_VERSION_LINE" ]; then
+            echo "ERROR: Could not extract version from MixpanelSwiftCommon.podspec"
+            exit 1
+          fi
+          PODSPEC_VERSION=$(printf '%s\n' "$PODSPEC_VERSION_LINE" | sed -E "s/.*'([0-9]+\.[0-9]+\.[0-9]+)'.*/\1/")
+
+          echo "Input version: $INPUT_VERSION"
+          echo "Podspec version: $PODSPEC_VERSION"
+
+          if [ "$PODSPEC_VERSION" != "$INPUT_VERSION" ]; then
+            echo ""
+            echo "ERROR: Version mismatch between input and podspec"
+            echo "  Input version: $INPUT_VERSION"
+            echo "  Podspec version: $PODSPEC_VERSION"
+            echo ""
+            echo "The tag $INPUT_VERSION exists but contains version $PODSPEC_VERSION in the podspec."
+            echo "This is a critical error - versions must match exactly."
+            exit 1
+          fi
+
+          echo "✓ Podspec version matches input version"
+
+      - name: Validate podspec
+        run: |
+          # Install CocoaPods
+          gem install cocoapods
+
+          # Use spec lint (validates against the published tag)
+          pod spec lint MixpanelSwiftCommon.podspec --allow-warnings
+
+      - name: Publish to CocoaPods
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
+            echo "ERROR: COCOAPODS_TRUNK_TOKEN secret not found"
+            echo ""
+            echo "Make sure the secret is configured in the 'production' environment."
+            exit 1
+          fi
+
+          echo "Publishing MixpanelSwiftCommon.podspec to CocoaPods trunk..."
+          pod trunk push MixpanelSwiftCommon.podspec --allow-warnings
+
+          echo "✓ Published to CocoaPods trunk"
+
+      - name: CocoaPod release complete
+        run: |
+          echo "✅ MixpanelSwiftCommon ${{ inputs.version }} published to CocoaPods!"
+          echo ""
+          echo "Final step:"
+          echo "  - Manually publish the draft GitHub Release at: https://github.com/${{ github.repository }}/releases"
+          echo ""
+          echo "The package is now available via:"
+          echo "  - Swift Package Manager (SPM)"
+          echo "  - CocoaPods"
