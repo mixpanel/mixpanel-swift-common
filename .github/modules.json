@@ -1,0 +1,13 @@
+{
+  "common": {
+    "tag_prefix": "",
+    "podspec": "MixpanelSwiftCommon.podspec",
+    "version_files": [
+      "MixpanelSwiftCommon.podspec",
+      "Sources/MixpanelSwiftCommon/Utils/Constants.swift"
+    ],
+    "changelog": "CHANGELOG.md",
+    "readme": "README.md",
+    "package_name": "mixpanel-swift-common"
+  }
+}
