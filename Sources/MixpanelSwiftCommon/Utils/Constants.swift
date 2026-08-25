@@ -10,7 +10,7 @@ import Foundation
 /// Constants for MixpanelSwiftCommon library
 public struct MixpanelCommonConstants {
     /// Current library version
-    private static let libVersion = "1.0.2"
+    private static let libVersion = "1.0.1"
 
     /// Library identifier
     private static let mpLib = "swift-common"

@@ -15,6 +15,11 @@ public enum SemanticVersion {
     // SemVer 2.0.0 requires major.minor.patch; partial versions are zero-padded to this.
     private static let parts = 3
 
+    // Longest operand the regex below is allowed to see. A real version never approaches this; the
+    // bound matches MAX_LENGTH in node-semver, and keeps an arbitrarily long property value off the
+    // regex regardless of how the engine schedules backtracking.
+    private static let maxLength = 256
+
     // Using the official semantic versioning 2.0.0 regular expression to handle cross-platform validation
     // differences on other SDK's. For example, some platforms allow leading zeros even though it is not valid
     // as part of the Semver 2.0.0 spec. See https://semver.org/
@@ -30,6 +35,9 @@ public enum SemanticVersion {
     /// and a partial version is zero-padded. Returns nil when either side is still not a valid version,
     /// which callers treat as "no match".
     public static func compare(_ actual: String, _ target: String) -> Int64? {
+        guard actual.count <= maxLength, target.count <= maxLength else {
+            return nil
+        }
         let normalizedActual = normalize(actual)
         let normalizedTarget = normalize(target)
         guard isValid(normalizedActual), isValid(normalizedTarget) else {
