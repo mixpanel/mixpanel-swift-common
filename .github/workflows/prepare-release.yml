@@ -127,9 +127,9 @@ jobs:
           echo '${{ steps.config.outputs.version_files }}' | jq -r '.[]' | xargs -r git add
           git add "${{ steps.config.outputs.changelog }}"
 
-          git commit -m "release: prepare $VERSION
-
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+          git commit \
+            -m "release: prepare $VERSION" \
+            -m "Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
           git push origin "$BRANCH"
 
@@ -161,30 +161,30 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
           # Create PR body
           PR_BODY=$(cat <<EOF
-## Release $VERSION
+          ## Release $VERSION
 
-This PR prepares the release for version \`$VERSION\`.
+          This PR prepares the release for version \`$VERSION\`.
 
-### Changes in this release
+          ### Changes in this release
 
-$CHANGELOG_SECTION
+          $CHANGELOG_SECTION
 
-### Checklist
+          ### Checklist
 
-- [ ] Version updated in \`MixpanelSwiftCommon.podspec\`
-- [ ] CHANGELOG.md updated with release notes
-- [ ] All CI checks pass
+          - [ ] Version updated in \`MixpanelSwiftCommon.podspec\`
+          - [ ] CHANGELOG.md updated with release notes
+          - [ ] All CI checks pass
 
-### Next steps
+          ### Next steps
 
-After merging this PR:
-1. Run the **Release SPM** workflow with version \`$VERSION\`
-2. Run the **Release CocoaPod** workflow with version \`$VERSION\`
-3. Publish the draft GitHub Release
+          After merging this PR:
+          1. Run the **Release SPM** workflow with version \`$VERSION\`
+          2. Run the **Release CocoaPod** workflow with version \`$VERSION\`
+          3. Publish the draft GitHub Release
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
-)
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)
+          EOF
+          )
 
           gh pr create \
             --title "release: prepare $VERSION" \
