@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: macos-26
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            destination: "platform=iOS Simulator,name=iPhone 17,OS=latest"
+            action: test
+          - platform: macOS
+            destination: "platform=macOS,arch=arm64"
+            action: test
+          - platform: tvOS
+            destination: "platform=tvOS Simulator,name=Apple TV,OS=latest"
+            action: test
+          - platform: watchOS
+            destination: "generic/platform=watchOS Simulator"
+            action: build
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+    - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90  # v1
+      with:
+        xcode-version: '26.2'
+
+    - name: Ensure ${{ matrix.platform }} simulator runtime is installed
+      if: matrix.platform == 'tvOS' || matrix.platform == 'watchOS'
+      run: xcodebuild -downloadPlatform ${{ matrix.platform }} || true
+
+    - name: Build and ${{ matrix.action }} (${{ matrix.platform }})
+      run: |
+        set -o pipefail
+        xcodebuild \
+          -scheme MixpanelSwiftCommon \
+          -derivedDataPath Build/ \
+          -destination "${{ matrix.destination }}" \
+          -configuration Debug \
+          -enableCodeCoverage YES \
+          ONLY_ACTIVE_ARCH=NO \
+          ENABLE_TESTABILITY=YES \
+          clean build ${{ matrix.action == 'test' && 'test' || '' }} | xcpretty -c
+

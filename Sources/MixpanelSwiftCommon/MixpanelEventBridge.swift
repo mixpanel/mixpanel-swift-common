@@ -26,7 +26,6 @@ public struct MixpanelEvent: @unchecked Sendable {
 
 /// Event bridge for multicasting Mixpanel events to external consumers via AsyncStream.
 /// Thread-safe, supports multiple concurrent stream consumers with automatic cleanup.
-@available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
 public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
 
     // MARK: - Singleton
@@ -90,12 +89,12 @@ public final class MixpanelEventBridge: NSObject, @unchecked Sendable {
         properties: [String: Any]
     ) {
         let event = MixpanelEvent(eventName: eventName, properties: properties)
-        
+
         // Get snapshot of active continuations
         continuationsLock.lock()
         let activeConsumers = Array(self.continuations.values)
         continuationsLock.unlock()
-        
+
         // Yield to all consumers
         for continuation in activeConsumers {
             continuation.yield(event)

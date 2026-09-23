@@ -5,8 +5,9 @@
 //  Created by Mixpanel on 2026-03-31.
 //
 
-import Testing
 import Foundation
+import Testing
+
 @testable import MixpanelSwiftCommon
 
 @Suite("MixpanelEventBridge Tests", .serialized)
@@ -32,7 +33,6 @@ struct MixpanelEventBridgeTests {
     // MARK: - Singleton Tests
 
     @Test("Shared instance is accessible")
-    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
     func testSharedInstance() {
         let bridge1 = MixpanelEventBridge.shared
         let bridge2 = MixpanelEventBridge.shared
@@ -42,7 +42,6 @@ struct MixpanelEventBridgeTests {
 
     // MARK: - Event Stream Tests
 
-    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
     private func firstEvent(
         from stream: AsyncStream<MixpanelEvent>,
         timeoutNanoseconds: UInt64 = 1_000_000_000
@@ -67,7 +66,6 @@ struct MixpanelEventBridgeTests {
     }
 
     @Test("Event stream yields notified events")
-    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
     func testEventStreamReceivesNotifiedEvent() async {
         let bridge = MixpanelEventBridge.shared
         let stream = bridge.eventStream()
@@ -92,7 +90,6 @@ struct MixpanelEventBridgeTests {
     }
 
     @Test("Stream consumer can receive one event and finish")
-    @available(iOS 13.0, macOS 10.15, tvOS 13.0, watchOS 6.0, *)
     func testNotifyListenersWithConsumingTask() async {
         let bridge = MixpanelEventBridge.shared
         var stream: AsyncStream<MixpanelEvent>? = bridge.eventStream()
