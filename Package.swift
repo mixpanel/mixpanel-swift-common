@@ -24,6 +24,6 @@ let package = Package(
             name: "MixpanelSwiftCommonTests",
             dependencies: ["MixpanelSwiftCommon"],
             resources: [.copy("test-data")]
-        )
+        ),
     ]
 )
