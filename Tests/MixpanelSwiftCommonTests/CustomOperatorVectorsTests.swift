@@ -5,10 +5,12 @@
 //  Runs the custom-operator golden vectors against the comparison helpers this module provides.
 //
 //  The vectors are the cross-SDK contract; the canonical copy and its README live in the analytics
-//  monorepo. Each case is a `[subject, operator, target, expected]` row. The SDKs reach these
-//  helpers through a JSONLogic engine, but the helpers themselves carry no JSONLogic type, so the
-//  row is applied directly here. That keeps the module covered by the same cases its consumers run,
-//  without tying it to a particular engine.
+//  monorepo. Each case is a `[subject, operator, target, expected]` row.
+//
+//  Each vector runs twice: once directly against the comparison helpers (which carry no JSONLogic
+//  type), and once as a real rule through `MixpanelJSONLogicRule` with `semver_compare` / `datetime_compare`
+//  registered as custom operators. The operator implementations below mirror the ones mixpanel-swift
+//  ships, so this is the path a feature-flag property filter takes at runtime.
 //
 
 import Foundation
@@ -126,6 +128,78 @@ struct CustomOperatorVectorsTests {
     func datetimeVectors() throws {
         for vector in try Self.loadVectors("datetime") {
             #expect(Self.datetimeCompare(vector) == vector.want, "\(vector.name)")
+        }
+    }
+
+    // MARK: - Through the JSONLogic engine
+
+    /// `[actual, symbol, target]`, the operand shape both custom operators expect.
+    private static func operands(_ json: MixpanelJSON?) -> (actual: MixpanelJSON, symbol: String, target: MixpanelJSON)?
+    {
+        guard case .array(let values)? = json, values.count == 3, let symbol = values[1].string else {
+            return nil
+        }
+        return (values[0], symbol, values[2])
+    }
+
+    /// Mirrors mixpanel-swift's `semver_compare` operator.
+    private static let semverOperator: MixpanelJSONLogicRule.CustomOperator = { json in
+        guard
+            let (actual, symbol, target) = operands(json),
+            let actualStr = actual.string, let targetStr = target.string,
+            let cmp = SemanticVersion.compare(actualStr, targetStr)
+        else {
+            return .bool(false)
+        }
+        return .bool(comparatorMatches(cmp, symbol))
+    }
+
+    /// Mirrors mixpanel-swift's `datetime_compare` operator: RFC 3339 actual, epoch-millisecond target.
+    private static let datetimeOperator: MixpanelJSONLogicRule.CustomOperator = { json in
+        guard let (actual, symbol, target) = operands(json), let raw = actual.string,
+            let actualSec = Rfc3339.toUnixSeconds(raw)
+        else {
+            return .bool(false)
+        }
+        let targetSec: Int64?
+        switch target {
+            case .int(let millis):
+                targetSec = Rfc3339.epochMillisToUnixSeconds(millis)
+            case .double(let millis):
+                targetSec = Rfc3339.epochMillisToUnixSeconds(millis)
+            default:
+                targetSec = nil
+        }
+        guard let targetSec else { return .bool(false) }
+        return .bool(comparatorMatches(actualSec - targetSec, symbol))
+    }
+
+    private static let engineOperators: [String: MixpanelJSONLogicRule.CustomOperator] = [
+        "semver_compare": semverOperator,
+        "datetime_compare": datetimeOperator,
+    ]
+
+    /// Builds `{"<op>": [{"var": "subject"}, symbol, target]}` and `{"subject": ...}` the way a
+    /// feature-flag property filter is evaluated, then runs it through the engine.
+    private static func evaluateThroughEngine(_ operatorName: String, _ vector: Vector) throws -> Bool {
+        let rule: [String: Any] = [operatorName: [["var": "subject"], vector.symbol, vector.target]]
+        let data: [String: Any] = vector.subject.map { ["subject": $0] } ?? [:]
+        let ruleString = String(decoding: try JSONSerialization.data(withJSONObject: rule), as: UTF8.self)
+        let dataString = String(decoding: try JSONSerialization.data(withJSONObject: data), as: UTF8.self)
+        return try MixpanelJSONLogicRule.evaluate(ruleString, data: dataString, customOperators: engineOperators)
+    }
+
+    @Test("semver_compare golden vectors through MixpanelJSONLogicRule")
+    func semverVectorsThroughEngine() throws {
+        for vector in try Self.loadVectors("semver") {
+            #expect(try Self.evaluateThroughEngine("semver_compare", vector) == vector.want, "\(vector.name)")
+        }
+    }
+
+    @Test("datetime_compare golden vectors through MixpanelJSONLogicRule")
+    func datetimeVectorsThroughEngine() throws {
+        for vector in try Self.loadVectors("datetime") {
+            #expect(try Self.evaluateThroughEngine("datetime_compare", vector) == vector.want, "\(vector.name)")
         }
     }
 }
