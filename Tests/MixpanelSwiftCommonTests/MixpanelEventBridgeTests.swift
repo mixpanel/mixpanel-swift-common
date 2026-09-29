@@ -100,7 +100,7 @@ struct MixpanelEventBridgeTests {
             properties: ["key": "value"]
         )
 
-        var event = await iterator?.next()
+        let event = await iterator?.next()
 
         #expect(event?.eventName == "termination_test_event")
         #expect(event?.properties["key"] as? String == "value")
