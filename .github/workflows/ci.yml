@@ -39,12 +39,16 @@ jobs:
     - name: Build and ${{ matrix.action }} (${{ matrix.platform }})
       run: |
         set -o pipefail
+        COVERAGE_FLAGS=()
+        if [ "${{ matrix.action }}" = "test" ]; then
+          COVERAGE_FLAGS=(-enableCodeCoverage YES)
+        fi
         xcodebuild \
           -scheme MixpanelSwiftCommon \
           -derivedDataPath Build/ \
           -destination "${{ matrix.destination }}" \
           -configuration Debug \
-          -enableCodeCoverage YES \
+          "${COVERAGE_FLAGS[@]}" \
           ONLY_ACTIVE_ARCH=NO \
           ENABLE_TESTABILITY=YES \
           clean build ${{ matrix.action == 'test' && 'test' || '' }} | xcpretty -c
