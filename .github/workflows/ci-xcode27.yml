@@ -51,7 +51,7 @@ jobs:
         if [ "${{ matrix.action }}" = "test" ]; then
           COVERAGE_FLAGS=(-enableCodeCoverage YES)
         fi
-        xcodebuild \
+        NSUnbufferedIO=YES xcodebuild \
           -scheme MixpanelSwiftCommon \
           -derivedDataPath Build/ \
           -destination "${{ matrix.destination }}" \
@@ -59,4 +59,4 @@ jobs:
           "${COVERAGE_FLAGS[@]}" \
           ONLY_ACTIVE_ARCH=NO \
           ENABLE_TESTABILITY=YES \
-          clean build ${{ matrix.action == 'test' && 'test' || '' }} | xcpretty -c
+          clean build ${{ matrix.action == 'test' && 'test' || '' }} | xcbeautify --renderer github-actions
