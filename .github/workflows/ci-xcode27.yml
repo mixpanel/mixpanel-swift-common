@@ -29,7 +29,7 @@ jobs:
             destination: "platform=macOS,arch=arm64"
             action: test
           - platform: tvOS
-            destination: "platform=tvOS Simulator,name=Apple TV,OS=latest"
+            destination: "platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=latest"
             action: test
           - platform: watchOS
             destination: "generic/platform=watchOS Simulator"
