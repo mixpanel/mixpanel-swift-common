@@ -17,4 +17,5 @@ Pod::Spec.new do |s|
 
   s.swift_version = '5.7'
   s.source_files = 'Sources/MixpanelSwiftCommon/**/*.swift'
+  s.preserve_paths = 'THIRD_PARTY_LICENSES.md'
 end
