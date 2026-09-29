@@ -42,7 +42,7 @@ jobs:
 
     - name: Ensure ${{ matrix.platform }} simulator runtime is installed
       if: matrix.platform == 'tvOS' || matrix.platform == 'watchOS'
-      run: xcodebuild -downloadPlatform ${{ matrix.platform }} || true
+      run: xcodebuild -downloadPlatform ${{ matrix.platform }}
 
     - name: Build and ${{ matrix.action }} (${{ matrix.platform }})
       run: |
