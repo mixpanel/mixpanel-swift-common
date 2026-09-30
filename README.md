@@ -27,12 +27,46 @@ for await event in stream {
 }
 ```
 
-### JSONLogicEvaluator
-Essential JSONLogic operators for targeting and filtering.
+### MixpanelJSONLogicRule
+Full jsonlogic.com rule evaluation, backed by a vendored copy of
+[json-logic-swift](https://github.com/advantagefse/json-logic-swift) 1.2.4 (see
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)). Supports every standard operator, including type
+coercion, and lets the caller register custom operators. Parse a rule once and evaluate it as often as
+needed; a parsed rule is immutable and safe to evaluate from any thread.
+
+```swift
+let rule = try MixpanelJSONLogicRule(
+    #"{"and": [{"===": [{"var": "plan"}, "pro"]}, {">": [{"var": "seats"}, 5]}]}"#
+)
+try rule.evaluate(data: #"{"plan": "pro", "seats": 12}"#)  // true
+
+// Custom operators receive their evaluated arguments as `MixpanelJSON`
+let operators: [String: MixpanelJSONLogicRule.CustomOperator] = [
+    "semver_compare": { args in
+        guard let values = args?.array, values.count == 3,
+              let actual = values[0].string, let symbol = values[1].string, let target = values[2].string,
+              let cmp = SemanticVersion.compare(actual, target)
+        else { return .bool(false) }
+        return .bool(symbol == ">=" ? cmp >= 0 : cmp == 0)
+    }
+]
+try MixpanelJSONLogicRule.evaluate(
+    #"{"semver_compare": [{"var": "$app_version"}, ">=", "2.1.0"]}"#,
+    data: #"{"$app_version": "2.3.0"}"#,
+    customOperators: operators
+)  // true
+```
+
+A rule must evaluate to a boolean; anything else throws `MixpanelJSONLogicRule.EvaluationError.resultNotBoolean`.
+Unknown operators throw `unsupportedOperator`, malformed rules `invalidRule`, malformed data `invalidData`.
+
+### JSONLogicEvaluator (strict 10-operator subset)
+A separate, deliberately strict evaluator for targeting and filtering. Unlike `MixpanelJSONLogicRule`, it
+performs no type coercion and throws on type mismatches.
 
 Supports 10 operators: `===`, `!==`, `<`, `<=`, `>`, `>=`, `in`, `and`, `or`, `var`.
 
-See [OPERATORS.md](docs/JSONLogic%20Operators.md) for complete documentation and examples.
+See [JSONLogic Operators.md](docs/JSONLogic%20Operators.md) for complete documentation and examples.
 
 ```swift
 let evaluator = JSONLogicEvaluator()
@@ -52,6 +86,11 @@ dependencies: [
 ]
 ```
 
+
+## Third-party code
+
+This package bundles json-logic-swift under the MIT license. See
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the notice and the list of local modifications.
 
 ## License
 

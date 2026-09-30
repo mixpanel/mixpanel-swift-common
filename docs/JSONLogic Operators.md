@@ -1,5 +1,8 @@
 # JSONLogic Operators
 
+> This document describes `JSONLogicEvaluator`, the strict 10-operator subset. For full jsonlogic.com
+> semantics with custom operators, use `MixpanelJSONLogicRule` (see the README).
+
 This implementation supports 10 essential operators for targeting and filtering use cases.
 
 ## Supported Operators
