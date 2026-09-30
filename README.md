@@ -1,6 +1,17 @@
 # mixpanel-swift-common
 Shared common functionality for Mixpanel iOS SDKs.
 
+## Requirements
+
+| Platform | Minimum version |
+|---|---|
+| iOS | 15.0 |
+| tvOS | 15.0 |
+| macOS | 12.0 |
+| watchOS | 9.0 |
+
+Swift tools version 5.7 or later. These floors match what Xcode 27 requires for every build target, including CocoaPods pod targets. Need iOS 12–14? Stay on the 1.x line with Xcode 26.
+
 ## Components
 
 ### MixpanelEventBridge
@@ -37,7 +48,7 @@ This package is intended for use by Mixpanel SDK developers.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/mixpanel/mixpanel-swift-common.git", from: "1.0.0")
+    .package(url: "https://github.com/mixpanel/mixpanel-swift-common.git", from: "2.0.0")
 ]
 ```
 

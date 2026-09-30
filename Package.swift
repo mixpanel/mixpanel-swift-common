@@ -1,13 +1,13 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.7
 import PackageDescription
 
 let package = Package(
     name: "MixpanelSwiftCommon",
     platforms: [
-        .iOS(.v12),
-        .tvOS(.v12),
-        .macOS(.v10_13),
-        .watchOS(.v4),
+        .iOS(.v15),
+        .tvOS(.v15),
+        .macOS(.v12),
+        .watchOS(.v9),
     ],
     products: [
         .library(
@@ -24,6 +24,6 @@ let package = Package(
             name: "MixpanelSwiftCommonTests",
             dependencies: ["MixpanelSwiftCommon"],
             resources: [.copy("test-data")]
-        )
+        ),
     ]
 )

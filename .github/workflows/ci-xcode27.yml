@@ -1,0 +1,74 @@
+name: CI (Xcode 27)
+
+# Runs the same matrix as ci.yml but on the xcode-27 runner image, to prove this package
+# builds under the Xcode 27 / macOS 27 toolchain that Apple requires for App Store
+# submissions from April 2027 (SDK-171). This workflow is intentionally self-contained
+# (its own triggers, its own job) so that deleting ci.yml once Xcode 26 support is dropped
+# will not affect it — at that point this file can simply be renamed to ci.yml.
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: xcode-27
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: iOS
+            destination: "platform=iOS Simulator,name=iPhone 17,OS=latest"
+            action: test
+          - platform: macOS
+            destination: "platform=macOS,arch=arm64"
+            action: test
+          - platform: tvOS
+            destination: "platform=tvOS Simulator,name=Apple TV 4K (3rd generation),OS=latest"
+            action: test
+          - platform: watchOS
+            destination: "generic/platform=watchOS Simulator"
+            action: build
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+    - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90  # v1
+      with:
+        xcode-version: '27.0'
+
+    - name: Ensure ${{ matrix.platform }} simulator runtime is installed
+      if: matrix.platform == 'tvOS' || matrix.platform == 'watchOS'
+      run: xcodebuild -downloadPlatform ${{ matrix.platform }}
+
+    - name: Build and ${{ matrix.action }} (${{ matrix.platform }})
+      run: |
+        set -o pipefail
+        COVERAGE_FLAGS=()
+        if [ "${{ matrix.action }}" = "test" ]; then
+          COVERAGE_FLAGS=(-enableCodeCoverage YES)
+        fi
+        NSUnbufferedIO=YES xcodebuild \
+          -scheme MixpanelSwiftCommon \
+          -derivedDataPath Build/ \
+          -destination "${{ matrix.destination }}" \
+          -configuration Debug \
+          "${COVERAGE_FLAGS[@]}" \
+          ONLY_ACTIVE_ARCH=NO \
+          ENABLE_TESTABILITY=YES \
+          clean build ${{ matrix.action == 'test' && 'test' || '' }} | xcbeautify --renderer github-actions
+
+  pod-lint:
+    name: pod lib lint
+    runs-on: xcode-27
+    steps:
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+    - uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90  # v1
+      with:
+        xcode-version: '27.0'
+
+    - name: pod lib lint
+      run: pod lib lint MixpanelSwiftCommon.podspec --allow-warnings --platforms=ios,tvos,osx,watchos
