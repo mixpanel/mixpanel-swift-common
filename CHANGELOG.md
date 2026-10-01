@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.0.0](https://github.com/mixpanel/mixpanel-swift-common/tree/2.0.0) (2026-10-01)
+
+### Features
+
+- Vendor json-logic-swift into MixpanelSwiftCommon (#18) ([#18](https://github.com/mixpanel/mixpanel-swift-common/pull/18))
+
+[Full Changelog](https://github.com/mixpanel/mixpanel-swift-common/commits/2.0.0)
+
 ## [1.1.0](https://github.com/mixpanel/mixpanel-swift-common/tree/1.1.0) (2026-09-01)
 
 ### Fixes

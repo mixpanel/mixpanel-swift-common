@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'MixpanelSwiftCommon'
-  s.version          = '1.1.0'
+  s.version          = '2.0.0'
   s.summary          = 'Shared common functionality for Mixpanel iOS SDKs.'
   s.description      = <<-DESC
     Shared common functionality for Mixpanel iOS SDKs.
