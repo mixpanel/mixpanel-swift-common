@@ -36,12 +36,21 @@ public struct MixpanelIdentity: Equatable, Hashable, CustomStringConvertible {
     /// device until the user is known, then follow the user.
     public let deviceId: String?
 
-    /// Creates an identity.
+    /// Creates an identity for a user and, on a hierarchical groups project, their company.
+    ///
+    /// - parameter userId: the user's id
+    /// - parameter companyId: the id of the user's company, on a hierarchical groups project
+    public init(userId: String?, companyId: String? = nil) {
+        self.init(userId: userId, companyId: companyId, deviceId: nil)
+    }
+
+    /// For internal use by the Mixpanel SDKs only, which own the device id. Apps create an
+    /// identity with ``init(userId:companyId:)``.
     ///
     /// - parameter userId: the user's id
     /// - parameter companyId: the id of the user's company, on a hierarchical groups project
     /// - parameter deviceId: the device id analytics assigned
-    public init(userId: String?, companyId: String? = nil, deviceId: String? = nil) {
+    public init(userId: String?, companyId: String?, deviceId: String?) {
         self.userId = userId
         self.companyId = companyId
         self.deviceId = deviceId
