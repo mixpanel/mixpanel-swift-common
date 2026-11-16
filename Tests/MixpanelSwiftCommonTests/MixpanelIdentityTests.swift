@@ -6,7 +6,7 @@
 import Foundation
 import Testing
 
-@_spi(MixpanelInternal) @testable import MixpanelSwiftCommon
+@testable import MixpanelSwiftCommon
 
 @Suite("MixpanelIdentity Tests")
 struct MixpanelIdentityTests {

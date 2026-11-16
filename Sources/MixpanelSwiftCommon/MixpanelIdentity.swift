@@ -50,7 +50,6 @@ public struct MixpanelIdentity: Equatable, Hashable, CustomStringConvertible {
     /// - parameter userId: the user's id
     /// - parameter companyId: the id of the user's company, on a hierarchical groups project
     /// - parameter deviceId: the device id analytics assigned
-    @_spi(MixpanelInternal)
     public init(userId: String?, companyId: String?, deviceId: String?) {
         self.userId = userId
         self.companyId = companyId
