@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 
 
+## [2.1.0](https://github.com/mixpanel/mixpanel-swift-common/tree/2.1.0) (2026-11-16)
+
+### Features
+
+- hierarchical groups support (#24) ([#24](https://github.com/mixpanel/mixpanel-swift-common/pull/24))
+
+[Full Changelog](https://github.com/mixpanel/mixpanel-swift-common/commits/2.1.0)
+
 ## [2.0.0](https://github.com/mixpanel/mixpanel-swift-common/tree/2.0.0) (2026-10-01)
 
 ### Features
