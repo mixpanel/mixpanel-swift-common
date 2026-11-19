@@ -80,11 +80,25 @@ let result = try evaluator.evaluate(
 
 This package is intended for use by Mixpanel SDK developers.
 
+### Swift Package Manager (recommended)
+
 ```swift
 dependencies: [
     .package(url: "https://github.com/mixpanel/mixpanel-swift-common.git", from: "2.0.0")
 ]
 ```
+
+### CocoaPods (deprecated)
+
+> [!WARNING]
+> CocoaPods support is deprecated. Please migrate to Swift Package Manager.
+>
+> - **December 2, 2026:** CocoaPods trunk becomes read-only. Versions already on trunk keep installing with `pod 'MixpanelSwiftCommon'`, but new versions are not published there.
+> - **Until removal:** install newer versions straight from GitHub. Replace `X.Y.Z` with the release you want:
+>   ```ruby
+>   pod 'MixpanelSwiftCommon', :git => 'https://github.com/mixpanel/mixpanel-swift-common.git', :tag => 'X.Y.Z'
+>   ```
+> - **Around December 2027:** CocoaPods support is removed in the next major release.
 
 
 ## Third-party code

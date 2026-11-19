@@ -2,9 +2,8 @@ Pod::Spec.new do |s|
   s.name             = 'MixpanelSwiftCommon'
   s.version          = '2.1.0'
   s.summary          = 'Shared common functionality for Mixpanel iOS SDKs.'
-  s.description      = <<-DESC
-    Shared common functionality for Mixpanel iOS SDKs.
-  DESC
+  s.description      = 'Shared common functionality for Mixpanel iOS SDKs. CocoaPods support is deprecated; use Swift Package Manager. See https://github.com/mixpanel/mixpanel-swift-common#installation'
+  s.deprecated       = true
   s.homepage         = 'https://github.com/mixpanel/mixpanel-swift-common'
   s.license          = { :type => 'Apache-2.0', :file => 'LICENSE' }
   s.author           = { 'Mixpanel' => 'support@mixpanel.com' }
