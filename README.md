@@ -98,7 +98,7 @@ dependencies: [
 >   ```ruby
 >   pod 'MixpanelSwiftCommon', :git => 'https://github.com/mixpanel/mixpanel-swift-common.git', :tag => 'X.Y.Z'
 >   ```
-> - **Around December 2027:** CocoaPods support is removed in the next major release.
+> - **After November 2027:** CocoaPods support will be removed in a future major release.
 
 
 ## Third-party code
