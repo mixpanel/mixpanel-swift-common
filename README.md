@@ -100,7 +100,6 @@ dependencies: [
 >   ```
 > - **After November 2027:** CocoaPods support will be removed in a future major version of the SDK.
 
-
 ## Third-party code
 
 This package bundles json-logic-swift under the MIT license. See
