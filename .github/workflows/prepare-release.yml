@@ -179,8 +179,7 @@ jobs:
 
           After merging this PR:
           1. Run the **Release SPM** workflow with version \`$VERSION\`
-          2. Run the **Release CocoaPod** workflow with version \`$VERSION\`
-          3. Publish the draft GitHub Release
+          2. Publish the draft GitHub Release
 
           🤖 Generated with [Claude Code](https://claude.com/claude-code)
           EOF
@@ -202,4 +201,4 @@ jobs:
           echo "  1. Review the PR: https://github.com/${{ github.repository }}/pulls"
           echo "  2. Merge the PR after approval"
           echo "  3. Run 'Release SPM' workflow with version ${{ inputs.version }}"
-          echo "  4. Run 'Release CocoaPod' workflow with version ${{ inputs.version }}"
+          echo "  4. Publish the draft GitHub Release"
